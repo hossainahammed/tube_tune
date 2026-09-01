@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import 'core/services/auth_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/timer_service.dart';
@@ -61,12 +62,8 @@ class TubeTuneApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider.value(
-          value: timerService,
-        ),
-        ChangeNotifierProvider.value(
-          value: authService,
-        ),
+        ChangeNotifierProvider.value(value: timerService),
+        ChangeNotifierProvider.value(value: authService),
         ChangeNotifierProvider(
           create: (_) => AuthViewModel(authService: authService),
         ),
@@ -81,30 +78,36 @@ class TubeTuneApp extends StatelessWidget {
             youtubeService: youtubeService,
             settingsViewModel: ctx.read<SettingsViewModel>(),
           ),
-          update: (ctx, settingsVm, homeVm) => homeVm ?? HomeViewModel(
-            youtubeService: youtubeService,
-            settingsViewModel: settingsVm,
-          ),
+          update: (ctx, settingsVm, homeVm) =>
+              homeVm ??
+              HomeViewModel(
+                youtubeService: youtubeService,
+                settingsViewModel: settingsVm,
+              ),
         ),
         ChangeNotifierProxyProvider<SettingsViewModel, SearchViewModel>(
           create: (ctx) => SearchViewModel(
             youtubeService: youtubeService,
             settingsViewModel: ctx.read<SettingsViewModel>(),
           ),
-          update: (ctx, settingsVm, searchVm) => searchVm ?? SearchViewModel(
-            youtubeService: youtubeService,
-            settingsViewModel: settingsVm,
-          ),
+          update: (ctx, settingsVm, searchVm) =>
+              searchVm ??
+              SearchViewModel(
+                youtubeService: youtubeService,
+                settingsViewModel: settingsVm,
+              ),
         ),
         ChangeNotifierProxyProvider<SettingsViewModel, ShortsViewModel>(
           create: (ctx) => ShortsViewModel(
             youtubeService: youtubeService,
             settingsViewModel: ctx.read<SettingsViewModel>(),
           ),
-          update: (ctx, settingsVm, shortsVm) => shortsVm ?? ShortsViewModel(
-            youtubeService: youtubeService,
-            settingsViewModel: settingsVm,
-          ),
+          update: (ctx, settingsVm, shortsVm) =>
+              shortsVm ??
+              ShortsViewModel(
+                youtubeService: youtubeService,
+                settingsViewModel: settingsVm,
+              ),
         ),
         ChangeNotifierProxyProvider<SettingsViewModel, PlayerViewModel>(
           create: (ctx) => PlayerViewModel(
@@ -112,11 +115,13 @@ class TubeTuneApp extends StatelessWidget {
             youtubeService: youtubeService,
             settingsViewModel: ctx.read<SettingsViewModel>(),
           ),
-          update: (ctx, settingsVm, playerVm) => playerVm ?? PlayerViewModel(
-            storage: storageService,
-            youtubeService: youtubeService,
-            settingsViewModel: settingsVm,
-          ),
+          update: (ctx, settingsVm, playerVm) =>
+              playerVm ??
+              PlayerViewModel(
+                storage: storageService,
+                youtubeService: youtubeService,
+                settingsViewModel: settingsVm,
+              ),
         ),
       ],
       child: MaterialApp(
