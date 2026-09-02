@@ -7,6 +7,8 @@ import '../models/user_model.dart';
 import '../models/video_model.dart';
 import 'settings_viewmodel.dart';
 
+enum CommentSortOrder { top, newest }
+
 /// ViewModel managing video playback, related videos, comments, and watch history.
 class PlayerViewModel with ChangeNotifier {
   final StorageService storage;
@@ -19,6 +21,7 @@ class PlayerViewModel with ChangeNotifier {
   List<VideoModel> _relatedVideos = [];
   List<CommentModel> _comments = [];
   bool _isLoadingDetails = false;
+  CommentSortOrder _commentSortOrder = CommentSortOrder.top;
 
   final Set<String> _likedVideoIds = {};
   List<VideoModel> _watchHistory = [];
@@ -40,6 +43,7 @@ class PlayerViewModel with ChangeNotifier {
   List<CommentModel> get comments => _comments;
   bool get isLoadingDetails => _isLoadingDetails;
   bool get isAdBlocked => settingsViewModel.enableAdBlock;
+  CommentSortOrder get commentSortOrder => _commentSortOrder;
 
   List<VideoModel> get watchHistory => List.unmodifiable(_watchHistory);
   List<VideoModel> get watchLater => List.unmodifiable(_watchLater);
@@ -80,12 +84,33 @@ class PlayerViewModel with ChangeNotifier {
 
       _relatedVideos = filterResult.allowed;
       _comments = [...userSavedComments, ...dynamicComments];
+      _sortComments();
     } catch (_) {
       _relatedVideos = [];
       _comments = storage.getUserComments(video.id);
+      _sortComments();
     } finally {
       _isLoadingDetails = false;
       notifyListeners();
+    }
+  }
+
+  /// Change comment sort order (Top comments vs Newest first)
+  void setCommentSortOrder(CommentSortOrder order) {
+    _commentSortOrder = order;
+    _sortComments();
+    notifyListeners();
+  }
+
+  void _sortComments() {
+    if (_commentSortOrder == CommentSortOrder.top) {
+      _comments.sort((a, b) => b.likeCount.compareTo(a.likeCount));
+    } else {
+      _comments.sort((a, b) {
+        if (a.id.startsWith('user_') && !b.id.startsWith('user_')) return -1;
+        if (!a.id.startsWith('user_') && b.id.startsWith('user_')) return 1;
+        return b.id.compareTo(a.id);
+      });
     }
   }
 
