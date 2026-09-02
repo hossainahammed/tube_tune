@@ -497,9 +497,9 @@ class _SettingsViewState extends State<SettingsView> {
                     runSpacing: 8,
                     children: [
                       _buildFocusModeChip(settingsVm, 'all', '🌟 All'),
+                      _buildFocusModeChip(settingsVm, 'news', '📰 All News (National & Global)'),
                       _buildFocusModeChip(settingsVm, 'islamic_waz', '🕌 Islamic & Waz Only'),
                       _buildFocusModeChip(settingsVm, 'kids_cartoons', '👶 Kids & Cartoons Only'),
-                      _buildFocusModeChip(settingsVm, 'news', '📺 BD TV & News Only'),
                       _buildFocusModeChip(settingsVm, 'education_tech', '🎓 Tech & Education Only'),
                     ],
                   ),

@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../core/constants/app_colors.dart';
 import '../viewmodels/player_viewmodel.dart';
 import '../viewmodels/settings_viewmodel.dart';
@@ -55,13 +56,12 @@ class _MainNavigationViewState extends State<MainNavigationView> {
     return Scaffold(
       body: Stack(
         children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: pages,
-          ),
+          IndexedStack(index: _currentIndex, children: pages),
 
           // Floating Mini Player Bar (identical to YouTube mobile)
-          if (playerVm.isMiniPlayerVisible && playerVm.currentVideo != null && (!enableShorts || _currentIndex != 1))
+          if (playerVm.isMiniPlayerVisible &&
+              playerVm.currentVideo != null &&
+              (!enableShorts || _currentIndex != 1))
             Positioned(
               left: 8,
               right: 8,
@@ -114,9 +114,9 @@ class _MainNavigationViewState extends State<MainNavigationView> {
       elevation: 8,
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => PlayerView(video: video)),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => PlayerView(video: video)));
         },
         borderRadius: BorderRadius.circular(10),
         child: Container(
@@ -136,7 +136,8 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                   width: 70,
                   height: 44,
                   fit: BoxFit.cover,
-                  errorWidget: (context, url, error) => Container(color: Colors.black),
+                  errorWidget: (context, url, error) =>
+                      Container(color: Colors.black),
                 ),
               ),
               const SizedBox(width: 10),
@@ -149,12 +150,19 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                       video.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     Text(
                       video.author,
                       maxLines: 1,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFAAAAAA),
+                      ),
                     ),
                   ],
                 ),
@@ -168,7 +176,11 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                 onPressed: () => playerVm.togglePlayPause(),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Color(0xFFAAAAAA), size: 20),
+                icon: const Icon(
+                  Icons.close,
+                  color: Color(0xFFAAAAAA),
+                  size: 20,
+                ),
                 onPressed: () => playerVm.closeMiniPlayer(),
               ),
             ],

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import '../../viewmodels/settings_viewmodel.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
 import 'google_signin_dialog.dart';
@@ -16,10 +15,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settingsVm = context.watch<SettingsViewModel>();
     final authVm = context.watch<AuthViewModel>();
     final user = authVm.currentUser;
-    final isFocusActive = settingsVm.selectedFocusMode != 'all' && settingsVm.selectedFocusMode.isNotEmpty;
 
     return AppBar(
       titleSpacing: 16,
@@ -46,9 +43,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
           const SizedBox(width: 5),
 
-          // "YouTube" Brand Text (Official Style)
+          // "TubeTune" Brand Text (YouTube Official Style)
           const Text(
-            'YouTube',
+            'TubeTune',
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w800,
@@ -57,33 +54,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               fontFamily: 'Roboto',
             ),
           ),
-
-          // Subtle Filter/Focus Indicator if active
-          if (isFocusActive) ...[
-            const SizedBox(width: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: AppColors.cardBorder, width: 0.8),
-              ),
-              child: Text(
-                settingsVm.selectedFocusMode == 'islamic_waz'
-                    ? '🕌 Islamic'
-                    : settingsVm.selectedFocusMode == 'kids_cartoons'
-                        ? '👶 Kids'
-                        : settingsVm.selectedFocusMode == 'news'
-                            ? '📺 BD TV'
-                            : '⚡ Filtered',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
       actions: [

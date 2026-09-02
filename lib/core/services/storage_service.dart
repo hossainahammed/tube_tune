@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../models/comment_model.dart';
 import '../../models/timer_model.dart';
 import '../../models/user_model.dart';
 import '../../models/video_model.dart';
@@ -168,5 +169,25 @@ class StorageService {
   Future<void> saveWatchLater(List<VideoModel> videos) async {
     final list = videos.map((v) => jsonEncode(v.toJson())).toList();
     await _prefs?.setStringList(_keyWatchLater, list);
+  }
+
+  // --- Video Comments Persistence ---
+
+  List<CommentModel> getUserComments(String videoId) {
+    final raw = _prefs?.getStringList('comments_$videoId') ?? [];
+    return raw.map((e) {
+      try {
+        return CommentModel.fromJson(jsonDecode(e) as Map<String, dynamic>);
+      } catch (_) {
+        return null;
+      }
+    }).whereType<CommentModel>().toList();
+  }
+
+  Future<void> saveUserComment(String videoId, CommentModel comment) async {
+    final existing = getUserComments(videoId);
+    existing.insert(0, comment);
+    final encoded = existing.map((c) => jsonEncode(c.toJson())).toList();
+    await _prefs?.setStringList('comments_$videoId', encoded);
   }
 }

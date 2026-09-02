@@ -3,6 +3,7 @@ import '../core/services/filter_service.dart';
 import '../core/services/storage_service.dart';
 import '../core/services/youtube_service.dart';
 import '../models/comment_model.dart';
+import '../models/user_model.dart';
 import '../models/video_model.dart';
 import 'settings_viewmodel.dart';
 
@@ -64,7 +65,8 @@ class PlayerViewModel with ChangeNotifier {
 
     // Fetch comments & filtered related videos
     try {
-      final commentsFuture = youtubeService.fetchComments(video.id);
+      final userSavedComments = storage.getUserComments(video.id);
+      final dynamicComments = await youtubeService.fetchCommentsForVideo(video);
       final rawRelated = youtubeService.getCuratedVideosByCategory(video.categoryTag);
 
       final filterResult = FilterService.instance.filterList(
@@ -77,14 +79,59 @@ class PlayerViewModel with ChangeNotifier {
       );
 
       _relatedVideos = filterResult.allowed;
-      _comments = await commentsFuture;
+      _comments = [...userSavedComments, ...dynamicComments];
     } catch (_) {
       _relatedVideos = [];
-      _comments = [];
+      _comments = storage.getUserComments(video.id);
     } finally {
       _isLoadingDetails = false;
       notifyListeners();
     }
+  }
+
+  /// Post a new user comment and persist it
+  void addComment(String videoId, String text, UserModel currentUser) {
+    if (text.trim().isEmpty) return;
+    final newComment = CommentModel(
+      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+      author: currentUser.name.isNotEmpty ? currentUser.name : 'You',
+      authorAvatar: currentUser.avatarUrl,
+      text: text.trim(),
+      publishedTime: 'Just now',
+      likeCount: 0,
+      isLikedByMe: false,
+    );
+    _comments.insert(0, newComment);
+    storage.saveUserComment(videoId, newComment);
+    notifyListeners();
+  }
+
+  /// Toggle like state on a comment
+  void toggleCommentLike(String commentId) {
+    final index = _comments.indexWhere((c) => c.id == commentId);
+    if (index != -1) {
+      final comment = _comments[index];
+      final isLiked = comment.isLikedByMe;
+      _comments[index] = comment.copyWith(
+        isLikedByMe: !isLiked,
+        likeCount: isLiked
+            ? (comment.likeCount > 0 ? comment.likeCount - 1 : 0)
+            : comment.likeCount + 1,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Dynamic formatted like count reflecting user interaction
+  String getDisplayLikeCount(VideoModel video) {
+    final isLiked = _likedVideoIds.contains(video.id);
+    final count = isLiked ? video.likeCount + 1 : video.likeCount;
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return '$count';
   }
 
   void togglePlayPause() {
