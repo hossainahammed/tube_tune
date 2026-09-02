@@ -12,11 +12,22 @@ import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/player_viewmodel.dart';
 import 'viewmodels/search_viewmodel.dart';
 import 'viewmodels/settings_viewmodel.dart';
+import 'package:just_audio_background/just_audio_background.dart';
 import 'viewmodels/shorts_viewmodel.dart';
 import 'views/main_navigation_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize background audio foreground service for continuous playback
+  try {
+    await JustAudioBackground.init(
+      androidNotificationChannelId: 'com.example.tube_tune.channel.audio',
+      androidNotificationChannelName: 'TubeTune Background Playback',
+      androidNotificationOngoing: true,
+      androidNotificationIcon: 'mipmap/ic_launcher',
+    );
+  } catch (_) {}
 
   // Set system navigation bar & status bar style
   SystemChrome.setSystemUIOverlayStyle(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_categories.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../models/category_model.dart';
 import '../../../viewmodels/home_viewmodel.dart';
 import '../../../viewmodels/settings_viewmodel.dart';
 import '../../explore/explore_view.dart';
@@ -14,7 +15,18 @@ class CategoryChipsWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final homeVm = context.watch<HomeViewModel>();
     final settingsVm = context.watch<SettingsViewModel>();
-    final enabledCategories = settingsVm.enabledCategories;
+    final enabledCategories = List<CategoryModel>.from(settingsVm.enabledCategories);
+    if (!enabledCategories.any((c) => c.id == AppCategories.categoryLiveTv)) {
+      enabledCategories.insert(0, AppCategories.liveTvCategory);
+    }
+    if (!settingsVm.block18Plus) {
+      if (!enabledCategories.any((c) => c.id == AppCategories.categoryMusicSongs)) {
+        enabledCategories.insert(1, AppCategories.musicCategory);
+      }
+      if (!enabledCategories.any((c) => c.id == AppCategories.categoryMoviesCinema)) {
+        enabledCategories.insert(2, AppCategories.moviesCategory);
+      }
+    }
 
     return Container(
       height: 46,

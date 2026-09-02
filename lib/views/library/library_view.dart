@@ -190,7 +190,7 @@ class LibraryView extends StatelessWidget {
                 // Horizontal Watch History Carousel (Identical to YouTube "You" page)
                 if (playerVm.watchHistory.isNotEmpty)
                   SizedBox(
-                    height: 140,
+                    height: 154,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: playerVm.watchHistory.length,
@@ -360,7 +360,7 @@ class LibraryView extends StatelessWidget {
                       const Divider(color: AppColors.surfaceLight, height: 20),
                       _buildStatusRow(Icons.block, 'Ad-Blocker', settingsVm.enableAdBlock ? 'ACTIVE (No ads)' : 'Disabled', AppColors.accentGreen),
                       const SizedBox(height: 8),
-                      _buildStatusRow(Icons.visibility_off, '18+ & NSFW Blocker', settingsVm.block18Plus ? 'STRICTLY BLOCKED' : 'Off', AppColors.accentGreen),
+                      _buildStatusRow(Icons.shield_rounded, '18+ & Content Mode', settingsVm.allow18Plus ? 'UNRESTRICTED (All Content)' : 'PROTECTED (Safe Mode)', settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.accentGreen),
                       const SizedBox(height: 8),
                       _buildStatusRow(Icons.bolt, 'Reels / Shorts', settingsVm.enableShorts ? 'Enabled' : 'BLOCKED', settingsVm.enableShorts ? Colors.white : AppColors.youtubeRed),
                       const SizedBox(height: 8),

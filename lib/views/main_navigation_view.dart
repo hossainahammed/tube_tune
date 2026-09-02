@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/services/background_audio_service.dart';
 import '../viewmodels/player_viewmodel.dart';
 import '../viewmodels/settings_viewmodel.dart';
 import 'home/home_view.dart';
@@ -24,6 +25,12 @@ class _MainNavigationViewState extends State<MainNavigationView> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    BackgroundAudioService.instance.init();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final settingsVm = context.watch<SettingsViewModel>();
     final playerVm = context.watch<PlayerViewModel>();
@@ -35,11 +42,12 @@ class _MainNavigationViewState extends State<MainNavigationView> {
     }
 
     final enableShorts = settingsVm.enableShorts;
+    final isShortsActive = enableShorts && _currentIndex == 1;
 
     // Construct tabs identical to official YouTube mobile app
     final List<Widget> pages = [
       const HomeView(),
-      if (enableShorts) const ShortsView(),
+      if (enableShorts) ShortsView(isActive: isShortsActive),
       const SubscriptionsView(),
       const LibraryView(),
     ];
@@ -72,7 +80,15 @@ class _MainNavigationViewState extends State<MainNavigationView> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          if (_currentIndex != index) {
+            // When switching to Shorts, pause main player to avoid dual audio
+            if (index == 1) {
+              context.read<PlayerViewModel>().pauseVideo();
+            }
+            setState(() => _currentIndex = index);
+          }
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.background,
         selectedItemColor: Colors.white,

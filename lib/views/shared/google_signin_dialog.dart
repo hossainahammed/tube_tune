@@ -117,15 +117,15 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
             _buildAccountTile(
               name: 'Hossain Ahmed',
               email: 'hossain.tube@gmail.com',
-              avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+              avatarColor: const Color(0xFF4285F4),
               onTap: () => _signIn('Hossain Ahmed', 'hossain.tube@gmail.com'),
             ),
             const SizedBox(height: 8),
             _buildAccountTile(
-              name: 'Islamic Family Learning',
-              email: 'family.islamic@gmail.com',
-              avatarUrl: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=120&auto=format&fit=crop&q=80',
-              onTap: () => _signIn('Islamic Family Learning', 'family.islamic@gmail.com'),
+              name: 'TubeTune Family',
+              email: 'family.safe@gmail.com',
+              avatarColor: const Color(0xFF0F9D58),
+              onTap: () => _signIn('TubeTune Family', 'family.safe@gmail.com'),
             ),
             const SizedBox(height: 12),
 
@@ -211,7 +211,7 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
   Widget _buildAccountTile({
     required String name,
     required String email,
-    required String avatarUrl,
+    required Color avatarColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -227,8 +227,11 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: AppColors.surfaceElevated,
-              backgroundImage: NetworkImage(avatarUrl),
+              backgroundColor: avatarColor,
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'G',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 15),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(

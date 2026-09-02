@@ -31,12 +31,11 @@ class AuthService with ChangeNotifier {
     required String email,
     String? avatarUrl,
   }) async {
-    final defaultAvatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
     _currentUser = UserModel(
       id: 'g_${DateTime.now().millisecondsSinceEpoch}',
       name: name,
       email: email,
-      avatarUrl: avatarUrl?.isNotEmpty == true ? avatarUrl! : defaultAvatar,
+      avatarUrl: avatarUrl?.isNotEmpty == true ? avatarUrl! : '',
       channelName: '$name Official',
       subscribersCount: 1420,
       isLoggedIn: true,

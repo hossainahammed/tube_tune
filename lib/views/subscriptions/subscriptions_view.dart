@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/video_model.dart';
 import '../../viewmodels/home_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
+import '../shared/channel_avatar_widget.dart';
 import '../shared/custom_app_bar.dart';
 import '../shared/timer_status_bar.dart';
 
@@ -16,22 +18,42 @@ class SubscriptionsView extends StatefulWidget {
 
 class _SubscriptionsViewState extends State<SubscriptionsView> {
   String _selectedSubFilter = 'All';
-
-  final List<Map<String, String>> _channels = [
-    {'name': 'SOMOY TV', 'avatar': 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=120&auto=format&fit=crop&q=80', 'hasNew': 'true'},
-    {'name': 'Jamuna TV', 'avatar': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=120&auto=format&fit=crop&q=80', 'hasNew': 'true'},
-    {'name': 'BBC Bangla', 'avatar': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80', 'hasNew': 'true'},
-    {'name': 'Al Jazeera', 'avatar': 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80', 'hasNew': 'false'},
-    {'name': 'Azhari Media', 'avatar': 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=120&auto=format&fit=crop&q=80', 'hasNew': 'true'},
-    {'name': 'As-Sunnah', 'avatar': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80', 'hasNew': 'false'},
-    {'name': 'UNICEF Kids', 'avatar': 'https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=120&auto=format&fit=crop&q=80', 'hasNew': 'true'},
-    {'name': 'Flutter Dev', 'avatar': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=120&auto=format&fit=crop&q=80', 'hasNew': 'false'},
-  ];
+  String? _selectedChannel;
 
   @override
   Widget build(BuildContext context) {
     final homeVm = context.watch<HomeViewModel>();
-    final videos = homeVm.videos;
+    final allVideos = homeVm.videos;
+
+    // Extract dynamic unique channels from the active feed
+    final Map<String, VideoModel> uniqueChannels = {};
+    for (final v in allVideos) {
+      if (!uniqueChannels.containsKey(v.author)) {
+        uniqueChannels[v.author] = v;
+      }
+    }
+    final channelList = uniqueChannels.values.toList();
+
+    // Filter videos according to selected channel & sub-filter chips
+    final filteredVideos = allVideos.where((v) {
+      if (_selectedChannel != null && v.author != _selectedChannel) {
+        return false;
+      }
+      if (_selectedSubFilter == 'Live') {
+        return v.isLive || v.uploadDate.toLowerCase().contains('live');
+      }
+      if (_selectedSubFilter == 'Videos') {
+        return !v.isLive && !v.isShort;
+      }
+      if (_selectedSubFilter == 'Shorts') {
+        return v.isShort;
+      }
+      if (_selectedSubFilter == 'Today') {
+        final up = v.uploadDate.toLowerCase();
+        return up.contains('hour') || up.contains('minute') || up.contains('today') || up.contains('live');
+      }
+      return true;
+    }).toList();
 
     return Scaffold(
       appBar: const CustomAppBar(),
@@ -52,67 +74,84 @@ class _SubscriptionsViewState extends State<SubscriptionsView> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 14),
-              itemCount: _channels.length + 1,
+              itemCount: channelList.length + 1,
               separatorBuilder: (context, index) => const SizedBox(width: 14),
               itemBuilder: (context, index) {
-                if (index == _channels.length) {
+                if (index == channelList.length) {
                   return InkWell(
-                    onTap: () {},
-                    child: const Column(
+                    onTap: () => setState(() => _selectedChannel = null),
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: AppColors.surfaceElevated,
-                          child: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.white),
+                          backgroundColor: _selectedChannel == null
+                              ? AppColors.youtubeRed.withValues(alpha: 0.2)
+                              : AppColors.surfaceElevated,
+                          child: Icon(
+                            Icons.all_inclusive_rounded,
+                            size: 20,
+                            color: _selectedChannel == null ? AppColors.youtubeRed : Colors.white,
+                          ),
                         ),
-                        SizedBox(height: 4),
-                        Text('All', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                        const SizedBox(height: 4),
+                        Text(
+                          'All',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: _selectedChannel == null ? FontWeight.bold : FontWeight.normal,
+                            color: _selectedChannel == null ? Colors.white : AppColors.textSecondary,
+                          ),
+                        ),
                       ],
                     ),
                   );
                 }
 
-                final ch = _channels[index];
+                final ch = channelList[index];
+                final isSelected = _selectedChannel == ch.author;
+
                 return InkWell(
                   onTap: () {
-                    // Filter or search by this channel
+                    setState(() {
+                      if (_selectedChannel == ch.author) {
+                        _selectedChannel = null;
+                      } else {
+                        _selectedChannel = ch.author;
+                      }
+                    });
                   },
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundImage: NetworkImage(ch['avatar']!),
-                            backgroundColor: AppColors.surfaceElevated,
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? AppColors.youtubeRed : Colors.transparent,
+                            width: 2,
                           ),
-                          if (ch['hasNew'] == 'true')
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: AppColors.accentCyan,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: AppColors.background, width: 2),
-                                ),
-                              ),
-                            ),
-                        ],
+                        ),
+                        child: ChannelAvatarWidget(
+                          author: ch.author,
+                          avatarUrl: ch.channelAvatarUrl,
+                          radius: 22,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       SizedBox(
-                        width: 58,
+                        width: 60,
                         child: Text(
-                          ch['name']!,
+                          ch.author,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 11, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected ? Colors.white : const Color(0xFFAAAAAA),
+                          ),
                         ),
                       ),
                     ],
@@ -157,13 +196,40 @@ class _SubscriptionsViewState extends State<SubscriptionsView> {
             child: RefreshIndicator(
               onRefresh: () => homeVm.loadFeed(isRefresh: true),
               color: AppColors.youtubeRed,
-              child: ListView.builder(
-                itemCount: videos.length,
-                itemBuilder: (context, index) {
-                  final video = videos[index];
-                  return VideoCardWidget(video: video);
-                },
-              ),
+              child: filteredVideos.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.subscriptions_outlined, size: 56, color: AppColors.textMuted),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedChannel != null
+                                  ? 'No videos found for $_selectedChannel'
+                                  : 'No videos available for this filter',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                            ),
+                            if (_selectedChannel != null) ...[
+                              const SizedBox(height: 12),
+                              TextButton(
+                                onPressed: () => setState(() => _selectedChannel = null),
+                                child: const Text('Show All Channels', style: TextStyle(color: AppColors.accentCyan)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: filteredVideos.length,
+                      itemBuilder: (context, index) {
+                        final video = filteredVideos[index];
+                        return VideoCardWidget(video: video);
+                      },
+                    ),
             ),
           ),
         ],

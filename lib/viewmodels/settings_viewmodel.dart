@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../core/constants/app_categories.dart';
+import '../core/services/pip_service.dart';
 import '../core/services/storage_service.dart';
 import '../core/services/timer_service.dart';
 import '../models/category_model.dart';
@@ -13,6 +15,7 @@ class SettingsViewModel with ChangeNotifier {
   bool _enableShorts = true;
   bool _block18Plus = true;
   bool _enableAdBlock = true;
+  bool _enableBackgroundPlay = true;
   bool _strictCategoryMode = true;
   String _selectedFocusMode = 'all';
   List<CategoryModel> _categories = [];
@@ -33,7 +36,9 @@ class SettingsViewModel with ChangeNotifier {
   // Getters
   bool get enableShorts => _enableShorts;
   bool get block18Plus => _block18Plus;
+  bool get allow18Plus => !_block18Plus;
   bool get enableAdBlock => _enableAdBlock;
+  bool get enableBackgroundPlay => _enableBackgroundPlay;
   bool get strictCategoryMode => _strictCategoryMode;
   String get selectedFocusMode => _selectedFocusMode;
   List<CategoryModel> get categories => List.unmodifiable(_categories);
@@ -48,6 +53,8 @@ class SettingsViewModel with ChangeNotifier {
     _enableShorts = storage.getEnableShorts();
     _block18Plus = storage.getBlock18Plus();
     _enableAdBlock = storage.getEnableAdBlock();
+    _enableBackgroundPlay = storage.getEnableBackgroundPlay();
+    PipService.instance.setPipEnabled(_enableBackgroundPlay);
     _strictCategoryMode = storage.getStrictCategoryMode();
     _selectedFocusMode = storage.getSelectedFocusMode();
     _customBlacklist = storage.getCustomBlacklist();
@@ -83,9 +90,22 @@ class SettingsViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> toggleAllow18Plus(bool allow) async {
+    _block18Plus = !allow;
+    await storage.setBlock18Plus(_block18Plus);
+    notifyListeners();
+  }
+
   Future<void> toggleEnableAdBlock(bool value) async {
     _enableAdBlock = value;
     await storage.setEnableAdBlock(value);
+    notifyListeners();
+  }
+
+  Future<void> toggleBackgroundPlay(bool value) async {
+    _enableBackgroundPlay = value;
+    await storage.setEnableBackgroundPlay(value);
+    PipService.instance.setPipEnabled(value);
     notifyListeners();
   }
 

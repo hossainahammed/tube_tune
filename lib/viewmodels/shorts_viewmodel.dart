@@ -28,8 +28,32 @@ class ShortsViewModel with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool isLiked(String id) => _likedShortIds.contains(id);
 
+  bool _lastEnableShorts = true;
+  bool _lastBlock18Plus = true;
+  bool _lastStrictCategoryMode = true;
+  String _lastCustomBlacklistHash = '';
+  String _lastCategoriesHash = '';
+
   void _onSettingsChanged() {
-    loadShorts();
+    final enableShorts = settingsViewModel.enableShorts;
+    final block18 = settingsViewModel.block18Plus;
+    final strict = settingsViewModel.strictCategoryMode;
+    final blacklistHash = settingsViewModel.customBlacklist.join(',');
+    final categoriesHash = settingsViewModel.enabledCategories.map((c) => c.id).join(',');
+
+    // Only reload if actual filter settings or categories changed, NOT on 1-second timer ticks!
+    if (enableShorts != _lastEnableShorts ||
+        block18 != _lastBlock18Plus ||
+        strict != _lastStrictCategoryMode ||
+        blacklistHash != _lastCustomBlacklistHash ||
+        categoriesHash != _lastCategoriesHash) {
+      _lastEnableShorts = enableShorts;
+      _lastBlock18Plus = block18;
+      _lastStrictCategoryMode = strict;
+      _lastCustomBlacklistHash = blacklistHash;
+      _lastCategoriesHash = categoriesHash;
+      loadShorts();
+    }
   }
 
   Future<void> loadShorts() async {
@@ -43,7 +67,7 @@ class ShortsViewModel with ChangeNotifier {
     notifyListeners();
 
     try {
-      final rawShorts = youtubeService.getCuratedShorts();
+      final rawShorts = await youtubeService.fetchRealLiveShorts();
 
       // Master 18+ & Category Whitelist filtering on Reels/Shorts
       final filterResult = FilterService.instance.filterList(
@@ -57,7 +81,7 @@ class ShortsViewModel with ChangeNotifier {
 
       _shorts = filterResult.allowed;
     } catch (_) {
-      _shorts = [];
+      _shorts = youtubeService.getCuratedShorts();
     } finally {
       _isLoading = false;
       notifyListeners();

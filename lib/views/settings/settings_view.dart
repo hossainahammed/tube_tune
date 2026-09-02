@@ -26,6 +26,58 @@ class _SettingsViewState extends State<SettingsView> {
     super.dispose();
   }
 
+  Future<bool?> _showEnable18PlusConfirmDialog(BuildContext context, SettingsViewModel settingsVm) async {
+    final timerState = settingsVm.timerService.state;
+    if (timerState.pinCode.isNotEmpty) {
+      final pin = await showDialog<String>(
+        context: context,
+        builder: (_) => const PinDialog(
+          title: 'Enter Security PIN',
+          description: 'Enter your 4-digit PIN to enable 18+ and unrestricted content.',
+        ),
+      );
+      if (pin != timerState.pinCode) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Incorrect PIN!'), backgroundColor: AppColors.error),
+          );
+        }
+        return false;
+      }
+    }
+
+    if (!context.mounted) return false;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: AppColors.youtubeRed),
+            SizedBox(width: 8),
+            Text('Enable 18+ Mode?', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Enabling this allows all unrestricted YouTube content — including songs, movies, trailers, entertainment, and adult content — exactly like official YouTube.\n\nAre you sure you want to enable this?',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.youtubeRed),
+            child: const Text('Enable All Content', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSetPinDialog(BuildContext context, SettingsViewModel settingsVm) async {
     final messenger = ScaffoldMessenger.of(context);
     final newPin = await showDialog<String>(
@@ -439,17 +491,50 @@ class _SettingsViewState extends State<SettingsView> {
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
 
-                // 2. Hide 18+ Content Switch
+                // 2. 18+ & Unrestricted Mode Switch (All content, songs, movies)
                 SwitchListTile(
-                  title: const Text('Block 18+ & NSFW Content', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text(
-                    'Strictly blocks adult keywords, 18+ reels, violence, and enforces YouTube SafeSearch.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  title: const Text('18+ & All Content Mode (Songs, Movies, Adult)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: Text(
+                    settingsVm.allow18Plus
+                        ? 'ENABLED: All YouTube content is visible including songs, movies, entertainment, and adult content like default YouTube.'
+                        : 'DISABLED: Safe Mode active. 18+ content, songs, and movies are strictly blocked.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.textSecondary,
+                    ),
                   ),
-                  secondary: const Icon(Icons.visibility_off_rounded, color: AppColors.islamicGreen),
-                  value: settingsVm.block18Plus,
-                  activeThumbColor: AppColors.islamicGreen,
-                  onChanged: (val) => settingsVm.toggleBlock18Plus(val),
+                  secondary: Icon(
+                    settingsVm.allow18Plus ? Icons.lock_open_rounded : Icons.lock_rounded,
+                    color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.islamicGreen,
+                  ),
+                  value: settingsVm.allow18Plus,
+                  activeThumbColor: AppColors.youtubeRed,
+                  onChanged: (val) async {
+                    if (val) {
+                      final confirmed = await _showEnable18PlusConfirmDialog(context, settingsVm);
+                      if (confirmed == true) {
+                        await settingsVm.toggleAllow18Plus(true);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('18+ Mode enabled: Songs, movies, and all content are now visible like default YouTube.'),
+                              backgroundColor: AppColors.youtubeRed,
+                            ),
+                          );
+                        }
+                      }
+                    } else {
+                      await settingsVm.toggleAllow18Plus(false);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Safe Mode enabled: 18+ content, songs, and movies are strictly blocked.'),
+                            backgroundColor: AppColors.islamicGreen,
+                          ),
+                        );
+                      }
+                    }
+                  },
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
 
@@ -464,6 +549,28 @@ class _SettingsViewState extends State<SettingsView> {
                   value: settingsVm.enableAdBlock,
                   activeThumbColor: AppColors.accentAmber,
                   onChanged: (val) => settingsVm.toggleEnableAdBlock(val),
+                ),
+                const Divider(color: AppColors.surfaceLight, height: 1),
+
+                // 4. Background Play Switch
+                SwitchListTile(
+                  title: const Text('Background Play', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  subtitle: const Text(
+                    'Keep audio playing when you switch to other apps or turn off your screen.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                  secondary: const Icon(Icons.headphones_rounded, color: AppColors.accentCyan),
+                  value: settingsVm.enableBackgroundPlay,
+                  activeThumbColor: AppColors.accentCyan,
+                  onChanged: (val) {
+                    settingsVm.toggleBackgroundPlay(val);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(val ? 'Background Play enabled.' : 'Background Play disabled.'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

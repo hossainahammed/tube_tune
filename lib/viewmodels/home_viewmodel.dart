@@ -42,9 +42,32 @@ class HomeViewModel with ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get showShortsShelf => settingsViewModel.enableShorts && _shorts.isNotEmpty;
 
+  bool _lastEnableShorts = true;
+  bool _lastBlock18Plus = true;
+  bool _lastStrictCategoryMode = true;
+  String _lastCustomBlacklistHash = '';
+  String _lastCategoriesHash = '';
+
   void _onSettingsChanged() {
-    // When filters or categories change in settings, refresh current feed
-    loadFeed(category: _selectedCategory, isRefresh: true);
+    final enableShorts = settingsViewModel.enableShorts;
+    final block18 = settingsViewModel.block18Plus;
+    final strict = settingsViewModel.strictCategoryMode;
+    final blacklistHash = settingsViewModel.customBlacklist.join(',');
+    final categoriesHash = settingsViewModel.enabledCategories.map((c) => c.id).join(',');
+
+    // Only refresh feed if actual filter settings or categories changed, NOT on 1-second timer ticks!
+    if (enableShorts != _lastEnableShorts ||
+        block18 != _lastBlock18Plus ||
+        strict != _lastStrictCategoryMode ||
+        blacklistHash != _lastCustomBlacklistHash ||
+        categoriesHash != _lastCategoriesHash) {
+      _lastEnableShorts = enableShorts;
+      _lastBlock18Plus = block18;
+      _lastStrictCategoryMode = strict;
+      _lastCustomBlacklistHash = blacklistHash;
+      _lastCategoriesHash = categoriesHash;
+      loadFeed(category: _selectedCategory, isRefresh: true);
+    }
   }
 
   Future<void> selectCategory(String categoryId) async {
@@ -53,10 +76,14 @@ class HomeViewModel with ChangeNotifier {
     
     // Instant switch to curated content for the selected category
     if (categoryId == AppCategories.categoryAll) {
-      final enabledIds = settingsViewModel.enabledCategories.map((c) => c.id).toSet();
-      _videos = youtubeService.getAllCuratedVideos()
-          .where((v) => enabledIds.isEmpty || enabledIds.contains(v.categoryTag))
-          .toList();
+      if (!settingsViewModel.block18Plus) {
+        _videos = youtubeService.getAllCuratedVideos();
+      } else {
+        final enabledIds = settingsViewModel.enabledCategories.map((c) => c.id).toSet();
+        _videos = youtubeService.getAllCuratedVideos()
+            .where((v) => (enabledIds.isEmpty || enabledIds.contains(v.categoryTag)) && !FilterService.instance.isSongsOrMovies(v))
+            .toList();
+      }
     } else {
       _videos = youtubeService.getCuratedVideosByCategory(categoryId);
     }
@@ -78,6 +105,8 @@ class HomeViewModel with ChangeNotifier {
       final rawVideos = await youtubeService.fetchFeedForCategories(
         currentCategoryId: catId,
         enabledCategories: settingsViewModel.enabledCategories,
+        allow18Plus: !settingsViewModel.block18Plus,
+        isRefresh: isRefresh,
       );
 
       // 2. Apply Master Filter Engine (Shorts, 18+, Category Isolation, Blacklist)
@@ -108,7 +137,7 @@ class HomeViewModel with ChangeNotifier {
         allowed = curatedFilter.allowed;
       }
 
-      _videos = allowed;
+      _videos = _sortByVisibleTime(allowed);
 
       // Record any blocked items for stats
       if (filterResult.filteredCount > 0) {
@@ -135,14 +164,61 @@ class HomeViewModel with ChangeNotifier {
         _shorts = [];
       }
     } catch (e) {
-      // If error occurs, keep existing curated videos if available
       if (_videos.isEmpty) {
-        _errorMessage = 'Unable to load feed. Please try again.';
+        final fallbackCurated = youtubeService.getCuratedVideosByCategory(catId);
+        if (fallbackCurated.isNotEmpty) {
+          _videos = _sortByVisibleTime(fallbackCurated);
+          _errorMessage = null;
+        } else {
+          _errorMessage = 'Unable to load feed. Please try again.';
+        }
       }
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// YouTube Visible Time Ranking:
+  /// 1. 24/7 Live Broadcasts (Somoy, BBC, Jamuna, CNN, Al Jazeera, etc.) prioritized at top
+  /// 2. Fresh Today / recent hours uploads positioned next
+  /// 3. Older catalog videos follow
+  List<VideoModel> _sortByVisibleTime(List<VideoModel> videos) {
+    if (videos.isEmpty) return [];
+
+    final liveVideos = <VideoModel>[];
+    final otherVideos = <VideoModel>[];
+
+    for (final v in videos) {
+      if (v.isLive ||
+          v.uploadDate.toLowerCase().contains('live') ||
+          v.duration.inHours >= 10) {
+        liveVideos.add(v);
+      } else {
+        otherVideos.add(v);
+      }
+    }
+
+    final result = <VideoModel>[];
+    int lIdx = 0;
+    int oIdx = 0;
+
+    // Place up to 2 top live broadcasts at the very top
+    while (lIdx < liveVideos.length && lIdx < 2) {
+      result.add(liveVideos[lIdx++]);
+    }
+
+    // Interleave remaining: 2 on-demand videos, then 1 live stream
+    while (lIdx < liveVideos.length || oIdx < otherVideos.length) {
+      for (int i = 0; i < 2 && oIdx < otherVideos.length; i++) {
+        result.add(otherVideos[oIdx++]);
+      }
+      if (lIdx < liveVideos.length) {
+        result.add(liveVideos[lIdx++]);
+      }
+    }
+
+    return result;
   }
 
   @override

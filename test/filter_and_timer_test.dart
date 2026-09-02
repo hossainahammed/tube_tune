@@ -183,5 +183,143 @@ void main() {
       final outsideTime = DateTime(2026, 9, 1, 14, 0);
       expect(timer.isOutsideSchedule(outsideTime), isTrue);
     });
+
+    test('6. 18+ Button Enabled: All contents like songs, movies, etc. are allowed as default YouTube', () {
+      const songVideo = VideoModel(
+        id: 'song_1',
+        title: 'Top Hits Song - Official Music Video',
+        author: 'Pop Star',
+        channelId: 'ch_music',
+        thumbnailUrl: '',
+        duration: Duration(minutes: 3, seconds: 30),
+        viewCount: 5000000,
+        uploadDate: 'Yesterday',
+        categoryTag: AppCategories.categoryMusicSongs,
+      );
+
+      const movieVideo = VideoModel(
+        id: 'mov_1',
+        title: 'Action Movie 2026 Full Cinema HD',
+        author: 'Mega Cinema',
+        channelId: 'ch_cinema',
+        thumbnailUrl: '',
+        duration: Duration(hours: 2),
+        viewCount: 12000000,
+        uploadDate: '3 days ago',
+        categoryTag: AppCategories.categoryMoviesCinema,
+      );
+
+      // When 18+ button is ENABLED (block18Plus == false)
+      expect(
+        filterService.isAllowedVideo(
+          songVideo,
+          enableShorts: true,
+          block18Plus: false, // 18+ button ENABLED
+          strictCategoryMode: true,
+          enabledCategories: AppCategories.defaultCategories,
+          customBlacklist: [],
+        ),
+        isTrue,
+        reason: 'Songs must be allowed when 18+ button is enabled',
+      );
+
+      expect(
+        filterService.isAllowedVideo(
+          movieVideo,
+          enableShorts: true,
+          block18Plus: false, // 18+ button ENABLED
+          strictCategoryMode: true,
+          enabledCategories: AppCategories.defaultCategories,
+          customBlacklist: [],
+        ),
+        isTrue,
+        reason: 'Movies must be allowed when 18+ button is enabled',
+      );
+    });
+
+    test('7. 18+ Button Disabled: Songs, movies, and adult content are strictly blocked in safe mode', () {
+      const songVideo = VideoModel(
+        id: 'song_1',
+        title: 'Top Hits Song - Official Music Video',
+        author: 'Pop Star',
+        channelId: 'ch_music',
+        thumbnailUrl: '',
+        duration: Duration(minutes: 3, seconds: 30),
+        viewCount: 5000000,
+        uploadDate: 'Yesterday',
+        categoryTag: AppCategories.categoryMusicSongs,
+      );
+
+      // When 18+ button is DISABLED (block18Plus == true)
+      expect(
+        filterService.isAllowedVideo(
+          songVideo,
+          enableShorts: true,
+          block18Plus: true, // 18+ button DISABLED (Safe Mode)
+          strictCategoryMode: true,
+          enabledCategories: AppCategories.defaultCategories,
+          customBlacklist: [],
+        ),
+        isFalse,
+        reason: 'Songs must be blocked when 18+ button is disabled',
+      );
+    });
+
+    test('8. Live TV Category: Safely filters and allows 24/7 Live Broadcasts without throwing StateError', () {
+      const liveStreamVideo = VideoModel(
+        id: 'live_tv_1',
+        title: 'SOMOY TV Live | সময় টিভি সরাসরি | 24/7 Live News Stream',
+        author: 'SOMOY TV',
+        channelId: 'ch_somoy',
+        thumbnailUrl: '',
+        duration: Duration.zero,
+        viewCount: 3000000,
+        uploadDate: 'Live Now',
+        isLive: true,
+        categoryTag: AppCategories.categoryNews,
+      );
+
+      const nonLiveVideo = VideoModel(
+        id: 'doc_1',
+        title: 'Ancient History Documentary Episode 1',
+        author: 'History Channel',
+        channelId: 'ch_history',
+        thumbnailUrl: '',
+        duration: Duration(minutes: 45),
+        viewCount: 100000,
+        uploadDate: '3 years ago',
+        isLive: false,
+        categoryTag: AppCategories.categoryEducationTech,
+      );
+
+      // Verify that selecting Live TV category does not throw StateError and allows live streams
+      expect(
+        filterService.isAllowedVideo(
+          liveStreamVideo,
+          enableShorts: true,
+          block18Plus: true,
+          strictCategoryMode: true,
+          enabledCategories: AppCategories.defaultCategories,
+          customBlacklist: [],
+          currentSelectedCategoryId: AppCategories.categoryLiveTv,
+        ),
+        isTrue,
+        reason: 'Live stream must be allowed under Live TV category',
+      );
+
+      expect(
+        filterService.isAllowedVideo(
+          nonLiveVideo,
+          enableShorts: true,
+          block18Plus: true,
+          strictCategoryMode: true,
+          enabledCategories: AppCategories.defaultCategories,
+          customBlacklist: [],
+          currentSelectedCategoryId: AppCategories.categoryLiveTv,
+        ),
+        isFalse,
+        reason: 'Non-live catalog video must be filtered out under Live TV category',
+      );
+    });
   });
 }

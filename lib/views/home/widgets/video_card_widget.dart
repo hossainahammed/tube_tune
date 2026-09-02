@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../models/video_model.dart';
 import '../../../viewmodels/player_viewmodel.dart';
 import '../../player/player_view.dart';
+import '../../shared/channel_avatar_widget.dart';
 
 /// Full-width video card widget matching official YouTube mobile interface.
 class VideoCardWidget extends StatelessWidget {
@@ -44,24 +45,37 @@ class VideoCardWidget extends StatelessWidget {
                     ),
                   ),
 
-                  // Duration Pill (Bottom Right)
+                  // Duration Pill / LIVE Badge (Bottom Right)
                   Positioned(
                     bottom: 8,
                     right: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: video.isLive ? AppColors.youtubeRed : Colors.black.withValues(alpha: 0.85),
+                        color: (video.isLive || video.uploadDate.toLowerCase().contains('live'))
+                            ? AppColors.youtubeRed
+                            : Colors.black.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text(
-                        video.durationFormatted,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.2,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (video.isLive || video.uploadDate.toLowerCase().contains('live')) ...[
+                            const Icon(Icons.sensors_rounded, size: 12, color: Colors.white),
+                            const SizedBox(width: 3),
+                          ],
+                          Text(
+                            (video.isLive || video.uploadDate.toLowerCase().contains('live'))
+                                ? 'LIVE'
+                                : video.durationFormatted,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -76,18 +90,10 @@ class VideoCardWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Channel Avatar (36x36 circular)
-                  CircleAvatar(
+                  ChannelAvatarWidget(
+                    author: video.author,
+                    avatarUrl: video.channelAvatarUrl,
                     radius: 18,
-                    backgroundColor: AppColors.surfaceElevated,
-                    backgroundImage: video.channelAvatarUrl.isNotEmpty
-                        ? CachedNetworkImageProvider(video.channelAvatarUrl)
-                        : null,
-                    child: video.channelAvatarUrl.isEmpty
-                        ? Text(
-                            video.author.isNotEmpty ? video.author[0].toUpperCase() : 'Y',
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
-                          )
-                        : null,
                   ),
                   const SizedBox(width: 12),
 
@@ -109,12 +115,19 @@ class VideoCardWidget extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${video.author} • ${video.viewCountFormatted} • ${video.uploadDate}',
+                          (video.isLive || video.uploadDate.toLowerCase().contains('live'))
+                              ? '${video.author} • 🔴 ${video.viewCountFormatted} watching now'
+                              : '${video.author} • ${video.viewCountFormatted} • ${video.uploadDate}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFFAAAAAA),
+                            color: (video.isLive || video.uploadDate.toLowerCase().contains('live'))
+                                ? const Color(0xFFFF5252)
+                                : const Color(0xFFAAAAAA),
+                            fontWeight: (video.isLive || video.uploadDate.toLowerCase().contains('live'))
+                                ? FontWeight.w500
+                                : FontWeight.normal,
                           ),
                         ),
                       ],

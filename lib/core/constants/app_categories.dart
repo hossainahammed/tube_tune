@@ -13,6 +13,10 @@ class AppCategories {
   static const String categoryHalalNasheed = 'halal_nasheed';
   static const String categoryCooking = 'cooking';
   static const String categorySports = 'sports';
+  static const String categoryMusicSongs = 'music_songs';
+  static const String categoryMoviesCinema = 'movies_cinema';
+  static const String categoryEntertainment = 'entertainment';
+  static const String categoryLiveTv = 'live_tv';
 
   static final List<CategoryModel> defaultCategories = [
     const CategoryModel(
@@ -118,6 +122,10 @@ class AppCategories {
       color: AppColors.techIndigo,
       description: 'Programming, tech tutorials, science documentaries, math & learning',
       keywords: [
+        'mrbeast', 'mkbhd', 'marques brownlee', 'veritasium', 'mark rober',
+        'national geographic', 'nat geo', 'nasa', 'ted', 'ted-ed', 'kurzgesagt',
+        'fireship', 'freecodecamp', 'discovery', 'planet earth', 'history',
+        'experiment', 'challenge', 'innovation', 'astronomy',
         'flutter', 'python', 'programming', 'coding', 'technology',
         'computer science', 'tutorial', 'course', 'science', 'physics',
         'mathematics', 'khan academy', 'crash course', 'artificial intelligence',
@@ -166,6 +174,55 @@ class AppCategories {
       ],
       isEnabled: true,
     ),
+  ];
+
+  static const CategoryModel musicCategory = CategoryModel(
+    id: categoryMusicSongs,
+    name: 'Music & Songs',
+    icon: Icons.music_note_rounded,
+    color: Color(0xFFE91E63),
+    description: 'Official music videos, hit songs, pop tracks, concerts & audio',
+    keywords: [
+      'song', 'songs', 'music', 'official music video', 'audio song', 'lyrics',
+      'bangla song', 'hindi song', 'bollywood song', 'english song', 'pop song',
+      'hit song', 'album', 'singer', 'soundtrack', 'remix song', 'concert'
+    ],
+    isEnabled: true,
+  );
+
+  static const CategoryModel moviesCategory = CategoryModel(
+    id: categoryMoviesCinema,
+    name: 'Movies & Cinema',
+    icon: Icons.movie_creation_rounded,
+    color: Color(0xFFFF5722),
+    description: 'Full movies, trailers, cinema releases, action films & entertainment',
+    keywords: [
+      'movie', 'movies', 'film', 'cinema', 'full movie', 'trailer', 'official trailer',
+      'teaser', 'action movie', 'bangla movie', 'hollywood movie', 'bollywood movie',
+      'blockbuster', 'drama film', 'short film', 'cinema release', 'box office'
+    ],
+    isEnabled: true,
+  );
+
+  static const CategoryModel liveTvCategory = CategoryModel(
+    id: categoryLiveTv,
+    name: 'Live TV',
+    icon: Icons.sensors_rounded,
+    color: AppColors.youtubeRed,
+    description: '24/7 Live television channels from Bangladesh and international broadcasters',
+    keywords: [
+      'live', 'live tv', 'live stream', '24/7', 'broadcasting', 'sarasori', 'সরাসরি',
+      'somoy live', 'jamuna live', 'bbc live', 'al jazeera live', 'rtv live',
+      'channel 24 live', 'cnn live', 'sky news live', 'watch live'
+    ],
+    isEnabled: true,
+  );
+
+  static List<CategoryModel> get allAvailableCategories => [
+    ...defaultCategories,
+    liveTvCategory,
+    musicCategory,
+    moviesCategory,
   ];
 
   /// Comprehensive list of adult, 18+, NSFW, vulgar, and inappropriate terms to block

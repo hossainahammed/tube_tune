@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
+import '../core/services/background_audio_service.dart';
 import '../core/services/filter_service.dart';
+import '../core/services/pip_service.dart';
 import '../core/services/storage_service.dart';
 import '../core/services/youtube_service.dart';
 import '../models/comment_model.dart';
@@ -66,6 +68,12 @@ class PlayerViewModel with ChangeNotifier {
 
     // Add to watch history
     _addToHistory(video);
+
+    // Prepare background audio stream if background play is enabled
+    if (settingsViewModel.enableBackgroundPlay) {
+      BackgroundAudioService.instance.prepareAudio(video);
+      PipService.instance.setVideoPlaying(true);
+    }
 
     // Fetch comments & filtered related videos
     try {
@@ -161,13 +169,25 @@ class PlayerViewModel with ChangeNotifier {
 
   void togglePlayPause() {
     _isPlaying = !_isPlaying;
+    PipService.instance.setVideoPlaying(_isPlaying);
     notifyListeners();
+  }
+
+  void pauseVideo() {
+    if (_isPlaying) {
+      _isPlaying = false;
+      BackgroundAudioService.instance.pause();
+      PipService.instance.setVideoPlaying(false);
+      notifyListeners();
+    }
   }
 
   void closeMiniPlayer() {
     _isMiniPlayerVisible = false;
     _isPlaying = false;
     _currentVideo = null;
+    BackgroundAudioService.instance.stop();
+    PipService.instance.setVideoPlaying(false);
     notifyListeners();
   }
 

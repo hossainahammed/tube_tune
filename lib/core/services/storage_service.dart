@@ -29,6 +29,7 @@ class StorageService {
   static const _keyBlock18Plus = 'block_18_plus';
   static const _keyEnableAdBlock = 'enable_ad_block';
   static const _keyStrictCategoryMode = 'strict_category_mode';
+  static const _keyEnableBackgroundPlay = 'enable_background_play';
   static const _keySelectedFocusMode = 'selected_focus_mode';
   static const _keyEnabledCategories = 'enabled_categories';
   static const _keyCustomBlacklist = 'custom_blacklist';
@@ -50,6 +51,9 @@ class StorageService {
 
   bool getEnableAdBlock() => _prefs?.getBool(_keyEnableAdBlock) ?? true;
   Future<bool> setEnableAdBlock(bool value) async => _prefs?.setBool(_keyEnableAdBlock, value) ?? false;
+
+  bool getEnableBackgroundPlay() => _prefs?.getBool(_keyEnableBackgroundPlay) ?? true;
+  Future<bool> setEnableBackgroundPlay(bool value) async => _prefs?.setBool(_keyEnableBackgroundPlay, value) ?? false;
 
   bool getStrictCategoryMode() => _prefs?.getBool(_keyStrictCategoryMode) ?? true;
   Future<bool> setStrictCategoryMode(bool value) async => _prefs?.setBool(_keyStrictCategoryMode, value) ?? false;

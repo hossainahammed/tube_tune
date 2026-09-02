@@ -5,11 +5,15 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/background_audio_service.dart';
+import '../../core/services/pip_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
+import '../../viewmodels/settings_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
+import '../shared/channel_avatar_widget.dart';
 import '../shared/timer_status_bar.dart';
 
 /// Fullscreen / In-depth Video Player Screen identical to official YouTube mobile.
@@ -22,11 +26,13 @@ class PlayerView extends StatefulWidget {
   State<PlayerView> createState() => _PlayerViewState();
 }
 
-class _PlayerViewState extends State<PlayerView> {
+class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   late YoutubePlayerController _controller;
   bool _isDescriptionExpanded = false;
   bool _isSubscribed = false;
   bool _isDisliked = false;
+  bool _isInPip = false;
+  bool _isBackgroundActive = false;
   final TextEditingController _commentInputController = TextEditingController();
 
   static String cleanYoutubeId(String raw) {
@@ -43,6 +49,7 @@ class _PlayerViewState extends State<PlayerView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final cleanId = cleanYoutubeId(widget.video.id);
 
     _controller = YoutubePlayerController.fromVideoId(
@@ -57,6 +64,18 @@ class _PlayerViewState extends State<PlayerView> {
       ),
     );
 
+    // Listen to native Picture-in-Picture mode transitions
+    PipService.instance.init();
+    PipService.instance.onPipModeChanged = (inPip) {
+      if (!mounted) return;
+      setState(() {
+        _isInPip = inPip;
+      });
+      if (inPip) {
+        _controller.playVideo();
+      }
+    };
+
     // Ensure player viewmodel initializes video state and loads realistic comments
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -67,13 +86,75 @@ class _PlayerViewState extends State<PlayerView> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    PipService.instance.onPipModeChanged = null;
     _controller.close();
     _commentInputController.dispose();
     super.dispose();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    final settingsVm = context.read<SettingsViewModel>();
+    if (!settingsVm.enableBackgroundPlay) return;
+
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      PipService.instance.isPipActive().then((inPip) {
+        if (inPip) {
+          // In floating PiP mode: keep video playing continuously in the floating window!
+          _controller.playVideo();
+          return;
+        }
+
+        // Screen is locked or turned off, or PiP not active:
+        // Transition to Android Foreground AudioService with notification!
+        if (!_isBackgroundActive) {
+          _isBackgroundActive = true;
+          if (widget.video.isLive) {
+            BackgroundAudioService.instance.startBackgroundPlay(widget.video);
+          } else {
+            _controller.currentTime.then((seconds) {
+              final pos = Duration(milliseconds: (seconds * 1000).toInt());
+              BackgroundAudioService.instance.startBackgroundPlay(widget.video, startPosition: pos);
+            }).catchError((_) {
+              BackgroundAudioService.instance.startBackgroundPlay(widget.video);
+            });
+          }
+        }
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      _isBackgroundActive = false;
+      if (BackgroundAudioService.instance.isPlaying) {
+        final bgPos = BackgroundAudioService.instance.position;
+        BackgroundAudioService.instance.pause();
+        if (!widget.video.isLive && bgPos > Duration.zero) {
+          _controller.seekTo(seconds: bgPos.inSeconds.toDouble());
+        }
+      }
+      _controller.playVideo();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // If in native Picture-in-Picture mode, render ONLY the full-bleed video player
+    if (_isInPip) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: YoutubePlayer(
+              controller: _controller,
+              aspectRatio: 16 / 9,
+            ),
+          ),
+        ),
+      );
+    }
+
     final playerVm = context.watch<PlayerViewModel>();
     final authVm = context.watch<AuthViewModel>();
     final isLiked = playerVm.isLiked(widget.video.id);
@@ -81,7 +162,9 @@ class _PlayerViewState extends State<PlayerView> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             const TimerStatusBar(),
@@ -215,15 +298,10 @@ class _PlayerViewState extends State<PlayerView> {
                     padding: const EdgeInsets.symmetric(horizontal: 14),
                     child: Row(
                       children: [
-                        CircleAvatar(
+                        ChannelAvatarWidget(
+                          author: widget.video.author,
+                          avatarUrl: widget.video.channelAvatarUrl,
                           radius: 18,
-                          backgroundColor: AppColors.surfaceElevated,
-                          backgroundImage: widget.video.channelAvatarUrl.isNotEmpty
-                              ? CachedNetworkImageProvider(widget.video.channelAvatarUrl)
-                              : null,
-                          child: widget.video.channelAvatarUrl.isEmpty
-                              ? const Icon(Icons.account_circle, size: 28, color: Color(0xFFAAAAAA))
-                              : null,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -772,15 +850,23 @@ class _PlayerViewState extends State<PlayerView> {
         CircleAvatar(
           radius: 16,
           backgroundColor: avatarColor,
-          backgroundImage: c.authorAvatar.isNotEmpty
-              ? CachedNetworkImageProvider(c.authorAvatar)
-              : null,
-          child: c.authorAvatar.isEmpty
-              ? Text(
-                  c.author.isNotEmpty ? c.author[0].toUpperCase() : 'U',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                )
-              : null,
+          child: ClipOval(
+            child: c.authorAvatar.isNotEmpty
+                ? CachedNetworkImage(
+                    imageUrl: c.authorAvatar,
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => Text(
+                      c.author.isNotEmpty ? c.author[0].toUpperCase() : 'U',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  )
+                : Text(
+                    c.author.isNotEmpty ? c.author[0].toUpperCase() : 'U',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -1378,13 +1464,18 @@ class _PlayerViewState extends State<PlayerView> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFFF0000), width: 2),
-                          image: DecorationImage(
-                            image: CachedNetworkImageProvider(widget.video.thumbnailUrl),
-                            fit: BoxFit.cover,
-                          ),
                         ),
-                        child: Stack(
-                          children: [
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              CachedNetworkImage(
+                                imageUrl: widget.video.thumbnailUrl,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(color: Colors.black),
+                                errorWidget: (context, url, error) => Container(color: Colors.black),
+                              ),
                             Positioned(
                               top: 8,
                               right: 8,
@@ -1428,7 +1519,8 @@ class _PlayerViewState extends State<PlayerView> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 16),
 
                     // Duration Toggle (15s vs 60s)
                     Row(

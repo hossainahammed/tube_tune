@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import '../constants/app_categories.dart';
 import '../../models/category_model.dart';
 import '../../models/video_model.dart';
@@ -48,6 +49,14 @@ class FilterService {
     if (video.categoryTag.toLowerCase() == category.id.toLowerCase()) {
       return true;
     }
+    if (category.id == AppCategories.categoryLiveTv &&
+        (video.isLive ||
+            video.uploadDate.toLowerCase().contains('live') ||
+            video.title.toLowerCase().contains('live') ||
+            video.title.contains('সরাসরি') ||
+            video.duration == Duration.zero)) {
+      return true;
+    }
 
     final titleLower = video.title.toLowerCase();
     final authorLower = video.author.toLowerCase();
@@ -78,8 +87,42 @@ class FilterService {
     return false;
   }
 
+  /// Check if a video represents songs, movies, or general unrestricted entertainment
+  bool isSongsOrMovies(VideoModel video) {
+    if (video.categoryTag == AppCategories.categoryMusicSongs ||
+        video.categoryTag == AppCategories.categoryMoviesCinema ||
+        video.categoryTag == AppCategories.categoryEntertainment) {
+      return true;
+    }
+
+    final lowerTitle = video.title.toLowerCase();
+    final lowerDesc = video.description.toLowerCase();
+    final allText = '$lowerTitle $lowerDesc';
+
+    const songMovieKeywords = [
+      'song', 'songs', 'music video', 'official video', 'gan', 'gaan', 'গান',
+      'movie', 'movies', 'full movie', 'cinema', 'trailer', 'film', 'চলচ্চিত্র', 'নাটক',
+      'bollywood', 'hollywood', 'pop music', 'album song', 'audio song'
+    ];
+
+    for (final kw in songMovieKeywords) {
+      if (allText.contains(kw)) {
+        // Exception: halal nasheed, educational tech or news is not blocked
+        if (video.categoryTag == AppCategories.categoryHalalNasheed ||
+            video.categoryTag == AppCategories.categoryIslamicWaz ||
+            video.categoryTag == AppCategories.categoryNews) {
+          return false;
+        }
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   /// Master Filter Evaluator
   /// Returns `true` if the video is safe and permitted under all active user settings.
+  /// If `block18Plus` is false (18+ button enabled), the user can see all contents (songs, movies, etc.) like default YouTube.
   bool isAllowedVideo(
     VideoModel video, {
     required bool enableShorts,
@@ -94,12 +137,7 @@ class FilterService {
       return false; // Shorts globally disabled
     }
 
-    // 2. 18+ and NSFW blocker (applies to regular videos AND reels/shorts)
-    if (block18Plus && is18Plus(video, customBlacklist)) {
-      return false; // 18+ content blocked
-    }
-
-    // 3. Custom blacklist check
+    // 2. Custom blacklist check (always enforced)
     for (final word in customBlacklist) {
       if (word.trim().isNotEmpty) {
         final w = word.toLowerCase().trim();
@@ -111,14 +149,54 @@ class FilterService {
       }
     }
 
-    // 4. Category Filter & Out-of-category Isolation
-    // If a specific category tab is selected (e.g. Islamic, Kids, News), only allow videos from that category
+    // 3. 18+ & UNRESTRICTED MODE:
+    // If block18Plus is FALSE (18+ button is ENABLED by user):
+    // -> The user can see ALL contents like songs, movies, adult content, etc., all as like default YouTube!
+    if (!block18Plus) {
+      if (currentSelectedCategoryId != null &&
+          currentSelectedCategoryId != 'all' &&
+          currentSelectedCategoryId.isNotEmpty) {
+        final selectedCategory = enabledCategories.firstWhere(
+          (c) => c.id == currentSelectedCategoryId,
+          orElse: () => AppCategories.allAvailableCategories.firstWhere(
+            (c) => c.id == currentSelectedCategoryId,
+            orElse: () => CategoryModel(id: currentSelectedCategoryId, name: currentSelectedCategoryId, icon: Icons.folder, color: Colors.grey, keywords: const []),
+          ),
+        );
+        return matchesCategory(video, selectedCategory);
+      }
+      return true; // All content permitted like default YouTube!
+    }
+
+    // 4. PROTECTED MODE (block18Plus == true, 18+ button DISABLED):
+    // -> Strictly block 18+ and adult content
+    if (is18Plus(video, customBlacklist)) {
+      return false;
+    }
+
+    // -> Strictly block songs, movies, and unfiltered pop entertainment
+    if (isSongsOrMovies(video)) {
+      return false;
+    }
+
+    // -> Category Filter & Out-of-category Isolation
     if (currentSelectedCategoryId != null &&
         currentSelectedCategoryId != 'all' &&
         currentSelectedCategoryId.isNotEmpty) {
       final selectedCategory = enabledCategories.firstWhere(
         (c) => c.id == currentSelectedCategoryId,
-        orElse: () => AppCategories.defaultCategories.firstWhere((c) => c.id == currentSelectedCategoryId),
+        orElse: () => AppCategories.allAvailableCategories.firstWhere(
+          (c) => c.id == currentSelectedCategoryId,
+          orElse: () => currentSelectedCategoryId == AppCategories.categoryLiveTv
+              ? AppCategories.liveTvCategory
+              : CategoryModel(
+                  id: currentSelectedCategoryId,
+                  name: currentSelectedCategoryId,
+                  icon: Icons.tv,
+                  color: Colors.red,
+                  keywords: const ['live', 'tv'],
+                ),
+        ),
       );
       if (!matchesCategory(video, selectedCategory)) {
         return false; // Block out-of-category content
@@ -126,7 +204,7 @@ class FilterService {
       return true;
     }
 
-    // If strict category mode is ON (or focus mode enabled), content OUTSIDE enabled categories is BLOCKED
+    // If strict category mode is ON, content OUTSIDE enabled categories is BLOCKED
     if (strictCategoryMode) {
       if (!matchesAnyCategory(video, enabledCategories)) {
         return false; // Block content that does not belong to enabled categories
@@ -160,6 +238,11 @@ class FilterService {
 
       if (block18Plus && is18Plus(v, customBlacklist)) {
         eighteenPlusCount++;
+        filteredCount++;
+        continue;
+      }
+
+      if (block18Plus && isSongsOrMovies(v)) {
         filteredCount++;
         continue;
       }
