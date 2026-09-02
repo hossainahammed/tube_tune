@@ -62,7 +62,7 @@ class YoutubeService {
         if (enabledCategories.isNotEmpty) {
           query = enabledCategories.take(3).map((c) => c.keywords.take(2).join(' ')).join(' ');
         }
-        if (query.isEmpty) query = 'somoy tv news bbc news bangla waz kids cartoon';
+        if (query.isEmpty) query = 'bangladesh news tv channels somoy tv jamuna tv bbc bangla waz kids cartoon';
       } else {
         query = _getQueryForCategory(currentCategoryId);
       }
@@ -73,7 +73,7 @@ class YoutubeService {
 
       if (searchResults.isNotEmpty) {
         final List<VideoModel> liveVideos = [];
-        for (final item in searchResults.take(12)) {
+        for (final item in searchResults.take(15)) {
           final guessedCat = currentCategoryId == AppCategories.categoryAll
               ? _guessCategoryFromEnabled(item.title, item.description, enabledCategories)
               : currentCategoryId;
@@ -126,21 +126,21 @@ class YoutubeService {
 
   String _getQueryForCategory(String categoryId) {
     if (categoryId == AppCategories.categoryIslamicWaz) {
-      return 'islamic waz lecture quran recitation mizanur rahman azhari';
+      return 'islamic waz lecture quran recitation mizanur rahman azhari shaykh ahmadullah';
     } else if (categoryId == AppCategories.categoryKidsCartoons) {
-      return 'kids cartoon educational animation stories meena cartoon tom and jerry';
+      return 'kids cartoon educational animation stories meena cartoon tom and jerry cocomelon';
     } else if (categoryId == AppCategories.categoryNews) {
-      return 'somoy tv live jamuna tv bbc news bbc bangla al jazeera world news';
+      return 'bangladesh all tv channels live somoy tv jamuna tv channel 24 ekattor tv dbc news ntv rtv btv channel i bbc bangla';
     } else if (categoryId == AppCategories.categoryEducationTech) {
-      return 'flutter coding tutorial python computer science education';
+      return 'flutter coding tutorial python computer science education technology';
     } else if (categoryId == AppCategories.categoryHalalNasheed) {
-      return 'peaceful islamic nasheed vocal only maher zain';
+      return 'peaceful islamic nasheed vocal only maher zain sami yusuf';
     } else if (categoryId == AppCategories.categoryCooking) {
-      return 'cooking delicious food recipes traditional biryani tutorial';
+      return 'cooking delicious food recipes traditional biryani village food secrets';
     } else if (categoryId == AppCategories.categorySports) {
-      return 'cricket match highlights football goals sports world cup';
+      return 'cricket match highlights football goals sports world cup icc';
     }
-    return 'educational family friendly documentary news';
+    return 'bangladesh tv news educational family friendly documentary';
   }
 
   /// Live search with query
@@ -304,7 +304,7 @@ class YoutubeService {
   List<VideoModel> getAllCuratedVideos() {
     return [
       // =======================================================
-      // --- News & Updates: Bangladeshi & International Media ---
+      // --- BD TV & News: Bangladesh TV Channels & Media ---
       // =======================================================
       const VideoModel(
         id: 'gCNeDWCI0wo',
@@ -350,6 +350,111 @@ class YoutubeService {
         categoryTag: AppCategories.categoryNews,
         likeCount: 92000,
         tags: ['channel 24', 'bangla news', 'news bulletin', 'bangladesh news', 'shongbad'],
+      ),
+      const VideoModel(
+        id: 'fJ9rUzIMcZQ_ekattor',
+        title: 'Ekattor TV Live Journal & Analysis | একাত্তর জার্নাল - আজকের বাংলাদেশ ও শীর্ষ খবর',
+        author: 'Ekattor TV',
+        channelId: 'ch_ekattor_tv',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 38, seconds: 10),
+        viewCount: 2600000,
+        uploadDate: '5 hours ago',
+        description: 'Ekattor Television 71 Journal covering Bangladesh political debates, parliamentary updates, and economic reports.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 110000,
+        tags: ['ekattor tv', '71 tv', 'bangla news', 'ekattor news', 'bangladesh news', 'shongbad'],
+      ),
+      const VideoModel(
+        id: '7Pq-S557XQU_dbc',
+        title: 'DBC News Live Special Bulletin | ডিবিসি নিউজ - বাংলাদেশ ও সমসাময়িক শীর্ষ সংবাদ',
+        author: 'DBC News',
+        channelId: 'ch_dbc_news',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1564769625905-50e93615e769?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 25, seconds: 40),
+        viewCount: 1900000,
+        uploadDate: '3 hours ago',
+        description: 'DBC News live desk reports on national events, rural developments, trade, and South Asian geopolitics.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 88000,
+        tags: ['dbc news', 'bangla news', 'bangladesh news', 'shongbad', 'news'],
+      ),
+      const VideoModel(
+        id: '9bZkp7q19f0_indep',
+        title: 'Independent Television 8 PM News Bulletin | ইন্ডিপেন্ডেন্ট টিভি রাত ৮টার প্রধান সংবাদ',
+        author: 'Independent Television',
+        channelId: 'ch_independent_tv',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 30, seconds: 15),
+        viewCount: 2200000,
+        uploadDate: '7 hours ago',
+        description: 'Independent Television flagship 8 PM bulletin detailing national stories, sports, and international diplomacy.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 96000,
+        tags: ['independent tv', 'independent television', 'bangla news', 'bangladesh news'],
+      ),
+      const VideoModel(
+        id: 'kJQP7kiw5Fk_channeli',
+        title: 'Channel i News & Trimatrik | চ্যানেল আই দুপুরের সংবাদ ও বিশেষ বিশ্লেষণ',
+        author: 'Channel i News',
+        channelId: 'ch_channel_i',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 27, seconds: 30),
+        viewCount: 1750000,
+        uploadDate: '6 hours ago',
+        description: 'Channel i news broadcast highlighting agricultural growth, cultural updates, national news, and diaspora stories.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 75000,
+        tags: ['channel i', 'channel i news', 'bangla news', 'shongbad'],
+      ),
+      const VideoModel(
+        id: 'm7Bc3pLyij0_ntv',
+        title: 'NTV News Special Bulletin | এনটিভি রাত সাড়ে ১০টার সংবাদ ও দেশ বিদেশের খবর',
+        author: 'NTV News',
+        channelId: 'ch_ntv_news',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 24, seconds: 50),
+        viewCount: 1850000,
+        uploadDate: '8 hours ago',
+        description: 'NTV News presenting comprehensive Bangladesh headlines, court reports, and international current affairs.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 82000,
+        tags: ['ntv', 'ntv news', 'bangla news', 'bangladesh news'],
+      ),
+      const VideoModel(
+        id: 'VPvVD8t02U8_rtv',
+        title: 'RTV News Live Bulletin | আরটিভি শীর্ষ সংবাদ ও বিশেষ প্রতিবেদন',
+        author: 'RTV News',
+        channelId: 'ch_rtv_news',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 26, seconds: 15),
+        viewCount: 1600000,
+        uploadDate: '9 hours ago',
+        description: 'RTV News continuous broadcast covering society, infrastructure, economic trends, and regional updates.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 71000,
+        tags: ['rtv', 'rtv news', 'bangla news', 'shongbad'],
+      ),
+      const VideoModel(
+        id: 'rfscVS0vtbw_btv',
+        title: 'Bangladesh Television (BTV) National News Bulletin | বিটিভি রাত ৮টার জাতীয় সংবাদ',
+        author: 'Bangladesh Television BTV',
+        channelId: 'ch_btv_national',
+        channelAvatarUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=120&auto=format&fit=crop&q=80',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=800&auto=format&fit=crop&q=80',
+        duration: Duration(minutes: 30, seconds: 00),
+        viewCount: 1400000,
+        uploadDate: '12 hours ago',
+        description: 'State broadcaster BTV official 8 PM national news bulletin delivering official government news and nationwide reports.',
+        categoryTag: AppCategories.categoryNews,
+        likeCount: 65000,
+        tags: ['btv', 'btv news', 'bangladesh television', 'shongbad', 'bangladesh'],
       ),
       const VideoModel(
         id: 'fJ9rUzIMcZQ',

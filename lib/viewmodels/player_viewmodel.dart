@@ -42,6 +42,7 @@ class PlayerViewModel with ChangeNotifier {
 
   List<VideoModel> get watchHistory => List.unmodifiable(_watchHistory);
   List<VideoModel> get watchLater => List.unmodifiable(_watchLater);
+  Set<String> get likedVideoIds => Set.unmodifiable(_likedVideoIds);
   bool isLiked(String id) => _likedVideoIds.contains(id);
   bool isWatchLater(String id) => _watchLater.any((v) => v.id == id);
 

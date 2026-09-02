@@ -7,7 +7,7 @@ import '../search/search_view.dart';
 import '../settings/settings_view.dart';
 import 'google_signin_dialog.dart';
 
-/// Top YouTube style App Bar with brand logo, search trigger, focus mode badge, and Google user avatar.
+/// Top YouTube App Bar with official YouTube logo styling, Cast, Notifications, Search, and Profile Avatar.
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({super.key});
 
@@ -18,71 +18,68 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final settingsVm = context.watch<SettingsViewModel>();
     final authVm = context.watch<AuthViewModel>();
-    final focusMode = settingsVm.selectedFocusMode;
     final user = authVm.currentUser;
+    final isFocusActive = settingsVm.selectedFocusMode != 'all' && settingsVm.selectedFocusMode.isNotEmpty;
 
     return AppBar(
       titleSpacing: 16,
+      elevation: 0,
+      backgroundColor: AppColors.background,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // YouTube Red Play Icon Badge
           Container(
-            padding: const EdgeInsets.all(6),
+            width: 28,
+            height: 20,
             decoration: BoxDecoration(
               color: AppColors.youtubeRed,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: const Icon(
-              Icons.play_arrow_rounded,
+            child: const Center(
+              child: Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+
+          // "YouTube" Brand Text (Official Style)
+          const Text(
+            'YouTube',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.8,
               color: Colors.white,
-              size: 20,
+              fontFamily: 'Roboto',
             ),
           ),
-          const SizedBox(width: 8),
-          RichText(
-            text: const TextSpan(
-              children: [
-                TextSpan(
-                  text: 'Tube',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                TextSpan(
-                  text: 'Tune',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.youtubeRedLight,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (focusMode != 'all' && focusMode.isNotEmpty) ...[
-            const SizedBox(width: 8),
+
+          // Subtle Filter/Focus Indicator if active
+          if (isFocusActive) ...[
+            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.islamicGreen.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.islamicGreen, width: 0.8),
+                color: AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: AppColors.cardBorder, width: 0.8),
               ),
               child: Text(
-                focusMode == 'islamic_waz'
+                settingsVm.selectedFocusMode == 'islamic_waz'
                     ? '🕌 Islamic'
-                    : focusMode == 'kids_cartoons'
+                    : settingsVm.selectedFocusMode == 'kids_cartoons'
                         ? '👶 Kids'
-                        : focusMode == 'news'
-                            ? '📰 News'
+                        : settingsVm.selectedFocusMode == 'news'
+                            ? '📺 BD TV'
                             : '⚡ Filtered',
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.islamicGreen,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
@@ -90,24 +87,48 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
+        // Cast Icon (Authentic YouTube)
         IconButton(
-          icon: const Icon(Icons.search_rounded, size: 24),
-          tooltip: 'Safe Search',
+          icon: const Icon(Icons.cast_outlined, size: 22, color: Colors.white),
+          tooltip: 'Cast to TV',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Searching for cast devices...'),
+                duration: Duration(seconds: 2),
+                backgroundColor: AppColors.surfaceElevated,
+              ),
+            );
+          },
+        ),
+
+        // Notifications Bell (Authentic YouTube)
+        IconButton(
+          icon: const Icon(Icons.notifications_none_outlined, size: 23, color: Colors.white),
+          tooltip: 'Notifications',
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No new notifications'),
+                duration: Duration(seconds: 2),
+                backgroundColor: AppColors.surfaceElevated,
+              ),
+            );
+          },
+        ),
+
+        // Search Icon (Authentic YouTube)
+        IconButton(
+          icon: const Icon(Icons.search_outlined, size: 24, color: Colors.white),
+          tooltip: 'Search',
           onPressed: () {
             Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SearchView()),
             );
           },
         ),
-        IconButton(
-          icon: const Icon(Icons.tune_rounded, size: 22),
-          tooltip: 'Filters & Settings',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsView()),
-            );
-          },
-        ),
+
+        // User Profile Avatar (Tapping opens Account & TubeTune Settings)
         InkWell(
           onTap: () {
             if (!authVm.isLoggedIn) {
@@ -125,15 +146,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: const EdgeInsets.only(left: 4, right: 14),
             child: CircleAvatar(
               radius: 14,
-              backgroundColor: authVm.isLoggedIn ? const Color(0xFF4285F4) : AppColors.surfaceLight,
+              backgroundColor: authVm.isLoggedIn ? const Color(0xFF4285F4) : AppColors.surfaceElevated,
               backgroundImage: authVm.isLoggedIn && user.avatarUrl.isNotEmpty
                   ? NetworkImage(user.avatarUrl)
                   : null,
               child: !authVm.isLoggedIn
-                  ? const Icon(Icons.account_circle, size: 20, color: AppColors.textSecondary)
+                  ? const Icon(Icons.account_circle, size: 22, color: AppColors.textSecondary)
                   : (user.avatarUrl.isEmpty
                       ? Text(
                           user.name.isNotEmpty ? user.name[0] : 'U',
@@ -143,7 +164,6 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
         ),
-        const SizedBox(width: 4),
       ],
     );
   }

@@ -4,15 +4,14 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../viewmodels/player_viewmodel.dart';
 import '../viewmodels/settings_viewmodel.dart';
-import 'explore/explore_view.dart';
 import 'home/home_view.dart';
 import 'library/library_view.dart';
 import 'lock/lock_screen_view.dart';
 import 'player/player_view.dart';
-import 'settings/settings_view.dart';
 import 'shorts/shorts_view.dart';
+import 'subscriptions/subscriptions_view.dart';
 
-/// Master Shell Navigation Screen with conditional Shorts tab, floating Mini-Player, and Auto-Lock Screen overlay.
+/// Master Shell Navigation Screen with official YouTube 4-tab bar (Home, Shorts, Subscriptions, You).
 class MainNavigationView extends StatefulWidget {
   const MainNavigationView({super.key});
 
@@ -36,19 +35,20 @@ class _MainNavigationViewState extends State<MainNavigationView> {
 
     final enableShorts = settingsVm.enableShorts;
 
-    // Construct tabs based on Shorts toggle
+    // Construct tabs identical to official YouTube mobile app
     final List<Widget> pages = [
       const HomeView(),
-      const ExploreView(),
       if (enableShorts) const ShortsView(),
+      const SubscriptionsView(),
       const LibraryView(),
-      const SettingsView(),
     ];
 
     // Adjust current index if shorts was turned off
-    if (!enableShorts && _currentIndex == 2) {
-      _currentIndex = 1;
-    } else if (!enableShorts && _currentIndex > 2) {
+    if (!enableShorts && _currentIndex == 1) {
+      _currentIndex = 0;
+    } else if (!enableShorts && _currentIndex > 1) {
+      _currentIndex = (_currentIndex - 1).clamp(0, pages.length - 1);
+    } else {
       _currentIndex = _currentIndex.clamp(0, pages.length - 1);
     }
 
@@ -56,12 +56,12 @@ class _MainNavigationViewState extends State<MainNavigationView> {
       body: Stack(
         children: [
           IndexedStack(
-            index: _currentIndex.clamp(0, pages.length - 1),
+            index: _currentIndex,
             children: pages,
           ),
 
-          // Floating Mini Player Bar
-          if (playerVm.isMiniPlayerVisible && playerVm.currentVideo != null && _currentIndex != 2)
+          // Floating Mini Player Bar (identical to YouTube mobile)
+          if (playerVm.isMiniPlayerVisible && playerVm.currentVideo != null && (!enableShorts || _currentIndex != 1))
             Positioned(
               left: 8,
               right: 8,
@@ -71,18 +71,19 @@ class _MainNavigationViewState extends State<MainNavigationView> {
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex.clamp(0, pages.length - 1),
+        currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.background,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: const Color(0xFFAAAAAA),
+        selectedFontSize: 10,
+        unselectedFontSize: 10,
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home_filled),
             label: 'Home',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore),
-            label: 'Explore',
           ),
           if (enableShorts)
             const BottomNavigationBarItem(
@@ -91,14 +92,14 @@ class _MainNavigationViewState extends State<MainNavigationView> {
               label: 'Shorts',
             ),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.video_library_outlined),
-            activeIcon: Icon(Icons.video_library),
-            label: 'Library',
+            icon: Icon(Icons.subscriptions_outlined),
+            activeIcon: Icon(Icons.subscriptions),
+            label: 'Subscriptions',
           ),
           const BottomNavigationBarItem(
-            icon: Icon(Icons.tune_outlined),
-            activeIcon: Icon(Icons.tune),
-            label: 'Settings',
+            icon: Icon(Icons.account_circle_outlined),
+            activeIcon: Icon(Icons.account_circle),
+            label: 'You',
           ),
         ],
       ),
@@ -119,7 +120,7 @@ class _MainNavigationViewState extends State<MainNavigationView> {
         },
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          height: 58,
+          height: 56,
           decoration: BoxDecoration(
             color: AppColors.surfaceElevated,
             borderRadius: BorderRadius.circular(10),
@@ -133,7 +134,7 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                 child: CachedNetworkImage(
                   imageUrl: video.thumbnailUrl,
                   width: 70,
-                  height: 46,
+                  height: 44,
                   fit: BoxFit.cover,
                   errorWidget: (context, url, error) => Container(color: Colors.black),
                 ),
@@ -153,7 +154,7 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                     Text(
                       video.author,
                       maxLines: 1,
-                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      style: const TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
                     ),
                   ],
                 ),
@@ -167,7 +168,7 @@ class _MainNavigationViewState extends State<MainNavigationView> {
                 onPressed: () => playerVm.togglePlayPause(),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: AppColors.textSecondary, size: 20),
+                icon: const Icon(Icons.close, color: Color(0xFFAAAAAA), size: 20),
                 onPressed: () => playerVm.closeMiniPlayer(),
               ),
             ],

@@ -19,18 +19,21 @@ class ShortsShelfWidget extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Shelf Header
+        // Shelf Header (Official YouTube Shorts)
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(4),
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: AppColors.youtubeRed,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: const Icon(Icons.bolt_rounded, size: 16, color: Colors.white),
+                child: const Center(
+                  child: Icon(Icons.bolt_rounded, size: 18, color: Colors.white),
+                ),
               ),
               const SizedBox(width: 8),
               const Text(
@@ -38,28 +41,19 @@ class ShortsShelfWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+                  color: Colors.white,
+                  letterSpacing: -0.4,
                 ),
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.islamicGreen.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  '18+ Filtered',
-                  style: TextStyle(fontSize: 10, color: AppColors.islamicGreen, fontWeight: FontWeight.bold),
-                ),
-              ),
+              const Icon(Icons.more_vert, size: 20, color: Color(0xFFAAAAAA)),
             ],
           ),
         ),
 
-        // Horizontal List
+        // Horizontal Shorts List
         SizedBox(
-          height: 240,
+          height: 250,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -76,11 +70,11 @@ class ShortsShelfWidget extends StatelessWidget {
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: SizedBox(
-                  width: 140,
+                  width: 145,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Thumbnail
+                      // Vertical 9:16 Thumbnail
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
@@ -90,9 +84,9 @@ class ShortsShelfWidget extends StatelessWidget {
                               CachedNetworkImage(
                                 imageUrl: short.thumbnailUrl,
                                 fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(color: AppColors.surfaceLight),
+                                placeholder: (context, url) => Container(color: AppColors.surfaceElevated),
                                 errorWidget: (context, url, error) => Container(
-                                  color: AppColors.surfaceLight,
+                                  color: AppColors.surfaceElevated,
                                   child: const Icon(Icons.play_arrow, color: Colors.white),
                                 ),
                               ),
@@ -103,9 +97,21 @@ class ShortsShelfWidget extends StatelessWidget {
                                     end: Alignment.bottomCenter,
                                     colors: [
                                       Colors.transparent,
-                                      Colors.black.withValues(alpha: 0.7),
+                                      Colors.black.withValues(alpha: 0.75),
                                     ],
                                   ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 6,
+                                right: 6,
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.4),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.more_vert, size: 16, color: Colors.white),
                                 ),
                               ),
                               Positioned(
@@ -130,9 +136,10 @@ class ShortsShelfWidget extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                          height: 1.25,
                         ),
                       ),
                     ],

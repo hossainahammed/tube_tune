@@ -22,6 +22,7 @@ class TimerService with ChangeNotifier {
   TimerModel get state => _state;
   bool get isLocked => _state.isLocked || _state.isScheduleLocked;
   bool get isTimerEnabled => _state.isTimerEnabled;
+  bool get isScheduleEnabled => _state.isScheduleEnabled;
   int get sessionRemainingSeconds => _state.sessionRemainingSeconds;
   int get breakRemainingSeconds => _state.breakRemainingSeconds;
 

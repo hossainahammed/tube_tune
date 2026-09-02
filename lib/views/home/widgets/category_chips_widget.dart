@@ -4,8 +4,9 @@ import '../../../core/constants/app_categories.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../viewmodels/home_viewmodel.dart';
 import '../../../viewmodels/settings_viewmodel.dart';
+import '../../explore/explore_view.dart';
 
-/// Horizontal scrolling category selector chips adhering to user's category filters.
+/// Horizontal scrolling category selector chips identical to official YouTube mobile.
 class CategoryChipsWidget extends StatelessWidget {
   const CategoryChipsWidget({super.key});
 
@@ -16,55 +17,93 @@ class CategoryChipsWidget extends StatelessWidget {
     final enabledCategories = settingsVm.enabledCategories;
 
     return Container(
-      height: 48,
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      height: 46,
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          bottom: BorderSide(color: AppColors.surfaceLight, width: 0.5),
+        ),
+      ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        itemCount: enabledCategories.length + 1,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: enabledCategories.length + 2, // 1 for Explore, 1 for "All", rest for categories
         separatorBuilder: (context, index) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
+          // 1. YouTube Explore Compass Chip (First item)
           if (index == 0) {
-            final isSelected = homeVm.selectedCategory == AppCategories.categoryAll;
-            return ChoiceChip(
-              label: const Text('All'),
-              selected: isSelected,
-              onSelected: (selected) => homeVm.selectCategory(AppCategories.categoryAll),
-              selectedColor: Colors.white,
-              backgroundColor: AppColors.surfaceLight,
-              labelStyle: TextStyle(
-                color: isSelected ? Colors.black : AppColors.textPrimary,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontSize: 13,
+            return InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ExploreView()),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.explore_outlined, size: 16, color: Colors.white),
+                  ],
+                ),
               ),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              showCheckmark: false,
             );
           }
 
-          final category = enabledCategories[index - 1];
+          // 2. "All" Filter Chip
+          if (index == 1) {
+            final isSelected = homeVm.selectedCategory == AppCategories.categoryAll;
+            return _buildChip(
+              label: 'All',
+              isSelected: isSelected,
+              onTap: () => homeVm.selectCategory(AppCategories.categoryAll),
+            );
+          }
+
+          // 3. User Filtered Category Chips
+          final category = enabledCategories[index - 2];
           final isSelected = homeVm.selectedCategory == category.id;
 
-          return ChoiceChip(
-            avatar: Icon(
-              category.icon,
-              size: 16,
-              color: isSelected ? Colors.black : category.color,
-            ),
-            label: Text(category.name),
-            selected: isSelected,
-            onSelected: (selected) => homeVm.selectCategory(category.id),
-            selectedColor: Colors.white,
-            backgroundColor: AppColors.surfaceLight,
-            labelStyle: TextStyle(
-              color: isSelected ? Colors.black : AppColors.textPrimary,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              fontSize: 13,
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            showCheckmark: false,
+          return _buildChip(
+            label: category.name,
+            isSelected: isSelected,
+            onTap: () => homeVm.selectCategory(category.id),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : AppColors.surfaceElevated,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? const Color(0xFF0F0F0F) : Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
