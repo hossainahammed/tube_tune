@@ -880,11 +880,20 @@ class YoutubeService {
     return all.where((v) => v.categoryTag == categoryId).toList();
   }
 
-  /// Get direct MP4 stream URL for ultra-fast native video playback (no webview/iframe)
-  Future<String?> getDirectStreamUrl(String videoId) async {
+  /// Get direct MP4/HLS stream URL for ultra-fast native video playback (no webview/iframe)
+  Future<String?> getDirectStreamUrl(String videoId, {bool isLive = false}) async {
     try {
       final yt = yt_exp.YoutubeExplode();
       try {
+        if (isLive) {
+          try {
+            final liveUrl = await yt.videos.streamsClient
+                .getHttpLiveStreamUrl(yt_exp.VideoId(videoId))
+                .timeout(const Duration(seconds: 10));
+            if (liveUrl.isNotEmpty) return liveUrl;
+          } catch (_) {}
+        }
+
         final manifest = await yt.videos.streamsClient
             .getManifest(videoId)
             .timeout(const Duration(seconds: 15));

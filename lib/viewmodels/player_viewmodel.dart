@@ -224,4 +224,17 @@ class PlayerViewModel with ChangeNotifier {
     await storage.saveWatchHistory([]);
     notifyListeners();
   }
+
+  /// Get the next video to play from related videos or category queue
+  VideoModel? getNextVideo() {
+    if (_relatedVideos.isNotEmpty) {
+      return _relatedVideos.first;
+    }
+    final allCurated = youtubeService.getCuratedVideosByCategory(_currentVideo?.categoryTag ?? 'all');
+    final available = allCurated.where((v) => v.id != _currentVideo?.id).toList();
+    if (available.isNotEmpty) {
+      return available.first;
+    }
+    return null;
+  }
 }

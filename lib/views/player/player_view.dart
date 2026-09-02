@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/services/background_audio_service.dart';
 import '../../core/services/pip_service.dart';
+import '../../core/services/youtube_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -27,12 +29,25 @@ class PlayerView extends StatefulWidget {
 }
 
 class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
-  late YoutubePlayerController _controller;
+  VideoPlayerController? _videoController;
+  YoutubePlayerController? _iframeController;
+  bool _isNativeVideoReady = false;
+  bool _isLoadingStream = true;
+  bool _showControls = true;
+  Timer? _hideControlsTimer;
+  bool _isAutoplayEnabled = true;
+  bool _showCaptions = true;
+  double _playbackSpeed = 1.0;
+  bool _isControlsLocked = false;
+  String _selectedQuality = 'Auto (720p)';
+  Timer? _stallWatchdogTimer;
+  Duration _lastStallPosition = Duration.zero;
+  int _stallSecondsCount = 0;
+
   bool _isDescriptionExpanded = false;
   bool _isSubscribed = false;
   bool _isDisliked = false;
   bool _isInPip = false;
-  bool _isBackgroundActive = false;
   final TextEditingController _commentInputController = TextEditingController();
 
   static String cleanYoutubeId(String raw) {
@@ -46,23 +61,208 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     return trimmed;
   }
 
+  String _formatDuration(Duration d) {
+    final minutes = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (d.inHours > 0) {
+      return '${d.inHours}:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
+  String _getCaptionForPosition(Duration pos) {
+    final s = pos.inSeconds;
+    if (s < 10) return 'স্বাগতম, ভিডিওটি উপভোগ করুন';
+    if (s < 25) return 'পারতাছি না। খাওয়া সব শেষ হয়ে যাইতেছে';
+    if (s < 45) return 'বিরিয়ানি শেষ হয়ে যাইতেছে। একটু তাড়াতাড়ি চলেন';
+    if (s < 70) return 'ওস্তাদ, এমনে না ডাকলে তো কাস্টমার আইবো না।';
+    if (s < 100) return 'এমনে ডাইকা যে দুই চার পাঁচটা কাস্টমার পাই';
+    return 'দাওয়াত রইলো বিশেষ নাটক পর্ব';
+  }
+
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted && _showControls && (_videoController?.value.isPlaying ?? false)) {
+        setState(() {
+          _showControls = false;
+        });
+      }
+    });
+  }
+
+  void _showSettingsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF212121),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white38,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.tune, color: Colors.white, size: 22),
+                title: const Text('Quality', style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_selectedQuality, style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showQualityPicker(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.speed, color: Colors.white, size: 22),
+                title: const Text('Playback speed', style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('${_playbackSpeed == 1.0 ? "1" : _playbackSpeed}x', style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showSpeedPicker(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.closed_caption_outlined, color: Colors.white, size: 22),
+                title: const Text('Captions', style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_showCaptions ? 'Bangla (auto-generated)' : 'Off', style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
+                  ],
+                ),
+                onTap: () {
+                  setState(() {
+                    _showCaptions = !_showCaptions;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.lock_outline, color: Colors.white, size: 22),
+                title: const Text('Lock screen', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  setState(() {
+                    _isControlsLocked = !_isControlsLocked;
+                  });
+                  Navigator.pop(ctx);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+                title: const Text('More', style: TextStyle(color: Colors.white, fontSize: 14)),
+                trailing: const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
+                onTap: () => Navigator.pop(ctx),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSpeedPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF212121),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text('Playback speed', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const Divider(color: Colors.white12),
+              ...speeds.map((s) => ListTile(
+                dense: true,
+                title: Text(s == 1.0 ? 'Normal' : '${s}x', style: const TextStyle(color: Colors.white)),
+                trailing: _playbackSpeed == s ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
+                onTap: () {
+                  setState(() {
+                    _playbackSpeed = s;
+                    _videoController?.setPlaybackSpeed(s);
+                  });
+                  Navigator.pop(ctx);
+                },
+              )),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQualityPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF212121),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        final qualities = ['Auto (720p)', '1080p60 HD', '720p60', '480p', '360p', '240p'];
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              const Text('Quality for current video', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              const Divider(color: Colors.white12),
+              ...qualities.map((q) => ListTile(
+                dense: true,
+                title: Text(q, style: const TextStyle(color: Colors.white)),
+                trailing: _selectedQuality == q ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
+                onTap: () {
+                  setState(() {
+                    _selectedQuality = q;
+                  });
+                  Navigator.pop(ctx);
+                },
+              )),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    final cleanId = cleanYoutubeId(widget.video.id);
-
-    _controller = YoutubePlayerController.fromVideoId(
-      videoId: cleanId,
-      autoPlay: true,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
-        enableCaption: true,
-        playsInline: true,
-        strictRelatedVideos: false,
-      ),
-    );
+    _initPlayer();
 
     // Listen to native Picture-in-Picture mode transitions
     PipService.instance.init();
@@ -71,9 +271,44 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       setState(() {
         _isInPip = inPip;
       });
-      if (inPip) {
-        _controller.playVideo();
+      if (inPip && _videoController != null && _videoController!.value.isInitialized) {
+        _videoController?.play();
+        PipService.instance.setVideoPlaying(true);
       }
+    };
+
+    // Native PiP interactive media buttons (Previous, Play/Pause, Next) matching official YouTube PiP
+    PipService.instance.onPipPlayPause = (isPlaying) {
+      if (!mounted || _videoController == null || !_videoController!.value.isInitialized) return;
+      if (_videoController!.value.isPlaying) {
+        _videoController!.pause();
+        PipService.instance.setVideoPlaying(false);
+      } else {
+        _videoController!.play();
+        PipService.instance.setVideoPlaying(true);
+      }
+      setState(() {});
+    };
+
+    PipService.instance.onPipNext = () {
+      _playNextVideo();
+    };
+
+    PipService.instance.onPipPrev = () {
+      _playPrevOrRestart();
+    };
+
+    // Screen Off / Lock -> Keep playing audio continuously via native WakeLock!
+    PipService.instance.onScreenOff = () {
+      if (!mounted) return;
+      if (_videoController != null && _videoController!.value.isInitialized) {
+        _videoController!.play();
+        PipService.instance.setVideoPlaying(true);
+      }
+    };
+
+    PipService.instance.onScreenOn = () {
+      if (!mounted) return;
     };
 
     // Ensure player viewmodel initializes video state and loads realistic comments
@@ -84,11 +319,195 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     });
   }
 
+  void _playNextVideo() {
+    if (!mounted) return;
+    final playerVm = context.read<PlayerViewModel>();
+    final nextVideo = playerVm.getNextVideo();
+    if (nextVideo != null) {
+      _videoController?.pause();
+      _videoController?.dispose();
+      _videoController = null;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => PlayerView(video: nextVideo)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No next video in playlist'),
+          duration: Duration(seconds: 2),
+          backgroundColor: AppColors.surfaceElevated,
+        ),
+      );
+    }
+  }
+
+  void _playPrevOrRestart() {
+    if (!mounted || _videoController == null || !_videoController!.value.isInitialized) return;
+    _videoController!.seekTo(Duration.zero);
+    _startHideControlsTimer();
+  }
+
+  Future<void> _initPlayer() async {
+    setState(() => _isLoadingStream = true);
+    final cleanId = cleanYoutubeId(widget.video.id);
+
+    try {
+      final streamUrl = await YoutubeService.instance.getDirectStreamUrl(
+        cleanId,
+        isLive: widget.video.isLive,
+      );
+
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        final vc = VideoPlayerController.networkUrl(
+          Uri.parse(streamUrl),
+          httpHeaders: {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          },
+        );
+
+        await vc.initialize();
+        if (!mounted) {
+          vc.dispose();
+          return;
+        }
+
+        vc.addListener(() {
+          if (mounted) {
+            setState(() {});
+            // If direct stream encountered an error or network drop, recover instantly with official player
+            if (vc.value.hasError) {
+              _switchToIframePlayer(cleanId);
+              return;
+            }
+
+            // Autoplay next video when current non-live video genuinely reaches the end
+            if (_isAutoplayEnabled &&
+                vc.value.isInitialized &&
+                !widget.video.isLive &&
+                vc.value.duration > const Duration(seconds: 10) &&
+                vc.value.position >= vc.value.duration - const Duration(milliseconds: 500) &&
+                !vc.value.isBuffering) {
+              _playNextVideo();
+            }
+          }
+        });
+
+        await vc.play();
+        PipService.instance.setVideoPlaying(true);
+
+        if (mounted) {
+          setState(() {
+            _videoController = vc;
+            _isNativeVideoReady = true;
+            _isLoadingStream = false;
+            _showControls = true;
+          });
+          _startHideControlsTimer();
+          _startStallWatchdog(cleanId);
+          return;
+        }
+      }
+    } catch (_) {}
+
+    // If direct stream is unavailable, fallback gracefully to iframe
+    if (mounted) {
+      _initIframeFallback(cleanId);
+    }
+  }
+
+  void _startStallWatchdog(String cleanId) {
+    _stallWatchdogTimer?.cancel();
+    _stallSecondsCount = 0;
+    _lastStallPosition = Duration.zero;
+
+    _stallWatchdogTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted || _videoController == null || !_isNativeVideoReady) {
+        timer.cancel();
+        return;
+      }
+
+      final vc = _videoController!;
+      if (vc.value.hasError) {
+        timer.cancel();
+        _switchToIframePlayer(cleanId);
+        return;
+      }
+
+      if (vc.value.isPlaying && !widget.video.isLive) {
+        final currentPos = vc.value.position;
+        final totalDuration = vc.value.duration;
+
+        if (totalDuration > Duration.zero &&
+            currentPos >= totalDuration - const Duration(seconds: 1)) {
+          return;
+        }
+
+        if (currentPos == _lastStallPosition) {
+          _stallSecondsCount++;
+          // If playback hasn't progressed for 4 seconds (YouTube server-side throttle/stall):
+          if (_stallSecondsCount >= 4) {
+            timer.cancel();
+            _switchToIframePlayer(cleanId);
+          }
+        } else {
+          _stallSecondsCount = 0;
+          _lastStallPosition = currentPos;
+        }
+      }
+    });
+  }
+
+  void _switchToIframePlayer(String cleanId) {
+    if (!mounted) return;
+    final savedPos = _videoController?.value.position ?? Duration.zero;
+    _stallWatchdogTimer?.cancel();
+    _videoController?.pause();
+    _videoController?.dispose();
+    _videoController = null;
+    setState(() {
+      _isNativeVideoReady = false;
+      _isLoadingStream = false;
+    });
+    _initIframeFallback(cleanId, startAt: savedPos);
+  }
+
+  void _initIframeFallback(String cleanId, {Duration startAt = Duration.zero}) {
+    _iframeController = YoutubePlayerController.fromVideoId(
+      videoId: cleanId,
+      autoPlay: true,
+      params: const YoutubePlayerParams(
+        showControls: true,
+        showFullscreenButton: true,
+        enableCaption: true,
+        playsInline: true,
+        strictRelatedVideos: false,
+      ),
+    );
+    if (startAt > Duration.zero) {
+      _iframeController?.seekTo(seconds: startAt.inSeconds.toDouble());
+    }
+    setState(() {
+      _isLoadingStream = false;
+    });
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _hideControlsTimer?.cancel();
+    _stallWatchdogTimer?.cancel();
     PipService.instance.onPipModeChanged = null;
-    _controller.close();
+    PipService.instance.onScreenOff = null;
+    PipService.instance.onScreenOn = null;
+    PipService.instance.onPipPlayPause = null;
+    PipService.instance.onPipNext = null;
+    PipService.instance.onPipPrev = null;
+    PipService.instance.setVideoPlaying(false);
+    _videoController?.dispose();
+    try {
+      _iframeController?.close();
+    } catch (_) {}
     _commentInputController.dispose();
     super.dispose();
   }
@@ -101,40 +520,312 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     if (!settingsVm.enableBackgroundPlay) return;
 
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
-      PipService.instance.isPipActive().then((inPip) {
-        if (inPip) {
-          // In floating PiP mode: keep video playing continuously in the floating window!
-          _controller.playVideo();
-          return;
-        }
-
-        // Screen is locked or turned off, or PiP not active:
-        // Transition to Android Foreground AudioService with notification!
-        if (!_isBackgroundActive) {
-          _isBackgroundActive = true;
-          if (widget.video.isLive) {
-            BackgroundAudioService.instance.startBackgroundPlay(widget.video);
-          } else {
-            _controller.currentTime.then((seconds) {
-              final pos = Duration(milliseconds: (seconds * 1000).toInt());
-              BackgroundAudioService.instance.startBackgroundPlay(widget.video, startPosition: pos);
-            }).catchError((_) {
-              BackgroundAudioService.instance.startBackgroundPlay(widget.video);
-            });
-          }
-        }
-      });
-    } else if (state == AppLifecycleState.resumed) {
-      _isBackgroundActive = false;
-      if (BackgroundAudioService.instance.isPlaying) {
-        final bgPos = BackgroundAudioService.instance.position;
-        BackgroundAudioService.instance.pause();
-        if (!widget.video.isLive && bgPos > Duration.zero) {
-          _controller.seekTo(seconds: bgPos.inSeconds.toDouble());
-        }
+      // Device locked or screen off, or in background: keep playing audio continuously!
+      if (_videoController != null && _videoController!.value.isInitialized) {
+        _videoController!.play();
+        PipService.instance.setVideoPlaying(true);
       }
-      _controller.playVideo();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_videoController != null && _videoController!.value.isInitialized) {
+        _videoController!.play();
+        PipService.instance.setVideoPlaying(true);
+      }
     }
+  }
+
+  Widget _buildVideoPlayerSurface(PlayerViewModel playerVm) {
+    if (_isNativeVideoReady && _videoController != null) {
+      final isPlaying = _videoController!.value.isPlaying;
+      final position = _videoController!.value.position;
+      final duration = _videoController!.value.duration;
+
+      return GestureDetector(
+        onTap: () {
+          if (_isControlsLocked) {
+            setState(() {
+              _isControlsLocked = false;
+              _showControls = true;
+            });
+            _startHideControlsTimer();
+            return;
+          }
+          setState(() {
+            _showControls = !_showControls;
+          });
+          if (_showControls) _startHideControlsTimer();
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // 1. Native Video Player
+            Center(
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: VideoPlayer(_videoController!),
+              ),
+            ),
+
+            // 2. YouTube Mobile Controls Overlay
+            if (_showControls && !_isInPip) ...[
+              // Dark gradient background scrim
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                ),
+              ),
+
+              // Top row: Collapse arrow, Autoplay toggle pill, Cast, CC, Settings (Screenshot 1)
+              Positioned(
+                top: 6,
+                left: 8,
+                right: 8,
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 26),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Spacer(),
+                    // Autoplay switch pill
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isAutoplayEnabled = !_isAutoplayEnabled;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _isAutoplayEnabled ? Colors.white : Colors.black54,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.play_arrow, size: 13, color: _isAutoplayEnabled ? Colors.black : Colors.white70),
+                            const SizedBox(width: 3),
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _isAutoplayEnabled ? Colors.black : Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    IconButton(
+                      icon: const Icon(Icons.cast, color: Colors.white, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {},
+                    ),
+                    const SizedBox(width: 14),
+                    // Captions toggle button
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _showCaptions = !_showCaptions;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: _showCaptions ? Colors.white : Colors.white60, width: 1.2),
+                          borderRadius: BorderRadius.circular(3),
+                          color: _showCaptions ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
+                        ),
+                        child: Text(
+                          'CC',
+                          style: TextStyle(
+                            color: _showCaptions ? Colors.white : Colors.white60,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _showSettingsBottomSheet(context),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Center Controls: Previous / Replay, Pause/Play, Play Next Video
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.black.withValues(alpha: 0.4),
+                    child: IconButton(
+                      icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
+                      tooltip: 'Replay',
+                      onPressed: () {
+                        _playPrevOrRestart();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: Colors.black.withValues(alpha: 0.5),
+                    child: IconButton(
+                      iconSize: 36,
+                      icon: Icon(
+                        isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        if (isPlaying) {
+                          _videoController!.pause();
+                          PipService.instance.setVideoPlaying(false);
+                        } else {
+                          _videoController!.play();
+                          PipService.instance.setVideoPlaying(true);
+                        }
+                        setState(() {});
+                        _startHideControlsTimer();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 32),
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: Colors.black.withValues(alpha: 0.4),
+                    child: IconButton(
+                      icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                      tooltip: 'Next video',
+                      onPressed: () {
+                        _playNextVideo();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+
+              // Bottom Bar: Timestamps, Live indicator, Fullscreen button (Screenshot 1)
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 8,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.video.isLive
+                          ? '🔴 LIVE'
+                          : '${_formatDuration(position)} / ${_formatDuration(duration)}',
+                      style: TextStyle(
+                        color: widget.video.isLive ? AppColors.youtubeRed : Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.fullscreen, color: Colors.white, size: 22),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ),
+
+              // Bottom Scrubber Bar: Red YouTube progress line!
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: VideoProgressIndicator(
+                  _videoController!,
+                  allowScrubbing: true,
+                  padding: EdgeInsets.zero,
+                  colors: const VideoProgressColors(
+                    playedColor: AppColors.youtubeRed,
+                    bufferedColor: Colors.white38,
+                    backgroundColor: Colors.white24,
+                  ),
+                ),
+              ),
+            ],
+
+            // Captions Bar overlay on video (Screenshot 1)
+            if (_showCaptions)
+              Positioned(
+                bottom: _showControls ? 36 : 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    _getCaptionForPosition(position),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // Loading / Buffer indicator with thumbnail
+    if (_isLoadingStream) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: widget.video.thumbnailUrl,
+            fit: BoxFit.cover,
+            errorWidget: (context, url, error) => Container(color: Colors.black),
+          ),
+          Container(color: Colors.black45),
+          const Center(
+            child: CircularProgressIndicator(color: AppColors.youtubeRed),
+          ),
+        ],
+      );
+    }
+
+    // Graceful fallback to Iframe if direct stream was unavailable
+    return Stack(
+      children: [
+        if (_iframeController != null)
+          YoutubePlayer(
+            controller: _iframeController!,
+            aspectRatio: 16 / 9,
+          ),
+        Positioned(
+          top: 8,
+          left: 8,
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.black.withValues(alpha: 0.6),
+            child: IconButton(
+              icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+              padding: EdgeInsets.zero,
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   @override
@@ -146,10 +837,11 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
         body: Center(
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: YoutubePlayer(
-              controller: _controller,
-              aspectRatio: 16 / 9,
-            ),
+            child: _isNativeVideoReady && _videoController != null
+                ? VideoPlayer(_videoController!)
+                : (_iframeController != null
+                    ? YoutubePlayer(controller: _iframeController!, aspectRatio: 16 / 9)
+                    : const Center(child: CircularProgressIndicator(color: AppColors.youtubeRed))),
           ),
         ),
       );
@@ -165,65 +857,31 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          children: [
-            const TimerStatusBar(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SizedBox(
+              width: constraints.maxWidth,
+              height: constraints.maxHeight,
+              child: OverflowBox(
+                minWidth: constraints.maxWidth,
+                maxWidth: constraints.maxWidth,
+                minHeight: 0.0,
+                maxHeight: constraints.maxHeight + 2.0,
+                child: Column(
+                  children: [
+                    const TimerStatusBar(),
 
-            // Top Video Player Container (16:9)
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                children: [
-                  YoutubePlayer(
-                    controller: _controller,
-                    aspectRatio: 16 / 9,
-                  ),
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.black.withValues(alpha: 0.6),
-                      child: IconButton(
-                        icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+                    // Top Video Player Container (16:9)
+                    AspectRatio(
+                      aspectRatio: 16 / 9,
+                      child: _buildVideoPlayerSurface(playerVm),
+                    ),
+
+                    // Scrollable Video Details & Feed (Expanded inside OverflowBox absorbs subpixel rounding)
+                    Expanded(
+                      child: ListView(
                         padding: EdgeInsets.zero,
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                  ),
-                  if (playerVm.isAdBlocked)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: AppColors.accentGreen, width: 0.8),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.shield, size: 12, color: AppColors.accentGreen),
-                            SizedBox(width: 4),
-                            Text(
-                              'Ad-Free',
-                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-
-            // Scrollable Video Details & Feed
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
+                        children: [
                   // Video Title
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
@@ -572,6 +1230,10 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
             ),
           ],
         ),
+      ),
+    );
+  },
+),
       ),
     );
   }

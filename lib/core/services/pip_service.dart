@@ -8,6 +8,11 @@ class PipService {
   static const MethodChannel _channel = MethodChannel('com.example.tube_tune/pip');
 
   Function(bool isInPip)? onPipModeChanged;
+  void Function()? onScreenOff;
+  void Function()? onScreenOn;
+  void Function(bool isPlaying)? onPipPlayPause;
+  void Function()? onPipNext;
+  void Function()? onPipPrev;
   bool _isPipActive = false;
   bool get isInPip => _isPipActive;
 
@@ -17,6 +22,17 @@ class PipService {
         final bool inPip = call.arguments as bool? ?? false;
         _isPipActive = inPip;
         onPipModeChanged?.call(inPip);
+      } else if (call.method == 'onScreenOff') {
+        onScreenOff?.call();
+      } else if (call.method == 'onScreenOn') {
+        onScreenOn?.call();
+      } else if (call.method == 'onPipPlayPause') {
+        final bool isPlaying = call.arguments as bool? ?? false;
+        onPipPlayPause?.call(isPlaying);
+      } else if (call.method == 'onPipNext') {
+        onPipNext?.call();
+      } else if (call.method == 'onPipPrev') {
+        onPipPrev?.call();
       }
     });
   }
@@ -41,6 +57,16 @@ class PipService {
       final bool? result = await _channel.invokeMethod<bool>('isPipActive');
       _isPipActive = result ?? false;
       return _isPipActive;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Check if device is locked (Keyguard) or screen is powered off
+  Future<bool> isDeviceLockedOrScreenOff() async {
+    try {
+      final bool? result = await _channel.invokeMethod<bool>('isDeviceLockedOrScreenOff');
+      return result ?? false;
     } catch (_) {
       return false;
     }

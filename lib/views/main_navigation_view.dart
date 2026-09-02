@@ -13,6 +13,8 @@ import 'player/player_view.dart';
 import 'shorts/shorts_view.dart';
 import 'subscriptions/subscriptions_view.dart';
 
+import '../core/services/pip_service.dart';
+
 /// Master Shell Navigation Screen with official YouTube 4-tab bar (Home, Shorts, Subscriptions, You).
 class MainNavigationView extends StatefulWidget {
   const MainNavigationView({super.key});
@@ -23,11 +25,19 @@ class MainNavigationView extends StatefulWidget {
 
 class _MainNavigationViewState extends State<MainNavigationView> {
   int _currentIndex = 0;
+  bool _isInPip = false;
 
   @override
   void initState() {
     super.initState();
     BackgroundAudioService.instance.init();
+    PipService.instance.init();
+    PipService.instance.onPipModeChanged = (inPip) {
+      if (!mounted) return;
+      setState(() {
+        _isInPip = inPip;
+      });
+    };
   }
 
   @override
@@ -39,6 +49,27 @@ class _MainNavigationViewState extends State<MainNavigationView> {
     // 1. If App is Locked by Auto-Lock Timer -> Show Lock Screen
     if (isLocked) {
       return const LockScreenView();
+    }
+
+    // 2. If in native Picture-in-Picture mode -> Render ONLY clean 16:9 full-bleed video (zero UI overflow)
+    if (_isInPip) {
+      final video = playerVm.currentVideo;
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: video != null
+                ? CachedNetworkImage(
+                    imageUrl: video.thumbnailUrl,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) =>
+                        Container(color: Colors.black),
+                  )
+                : Container(color: Colors.black),
+          ),
+        ),
+      );
     }
 
     final enableShorts = settingsVm.enableShorts;

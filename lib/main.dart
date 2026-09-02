@@ -15,6 +15,7 @@ import 'viewmodels/settings_viewmodel.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'viewmodels/shorts_viewmodel.dart';
 import 'views/main_navigation_view.dart';
+import 'core/responsive/responsive_centered_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,7 @@ void main() async {
       androidNotificationChannelId: 'com.example.tube_tune.channel.audio',
       androidNotificationChannelName: 'TubeTune Background Playback',
       androidNotificationOngoing: true,
-      androidNotificationIcon: 'mipmap/ic_launcher',
+      androidNotificationIcon: 'drawable/ic_bg_music',
     );
   } catch (_) {}
 
@@ -139,6 +140,9 @@ class TubeTuneApp extends StatelessWidget {
         title: 'TubeTune',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+        builder: (context, child) {
+          return ResponsiveCenteredWrapper(child: child ?? const SizedBox());
+        },
         home: const MainNavigationView(),
       ),
     );
