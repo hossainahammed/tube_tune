@@ -91,7 +91,7 @@ class _SearchViewState extends State<SearchView> {
               ),
               const SizedBox(height: 8),
               const Text(
-                '18+, NSFW, or blacklisted search keywords are prohibited under TubeTune Strict Safe Mode.',
+                '18+, NSFW, songs, movies, or blacklisted search keywords are prohibited under TubeTune Strict Safe Mode.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),

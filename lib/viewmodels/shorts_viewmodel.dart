@@ -12,6 +12,8 @@ class ShortsViewModel with ChangeNotifier {
   List<VideoModel> _shorts = [];
   int _currentIndex = 0;
   bool _isLoading = false;
+  bool _isLoadingMore = false;
+  int _shortsPage = 0;
   final Set<String> _likedShortIds = {};
 
   ShortsViewModel({
@@ -26,6 +28,7 @@ class ShortsViewModel with ChangeNotifier {
   List<VideoModel> get shorts => _shorts;
   int get currentIndex => _currentIndex;
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
   bool isLiked(String id) => _likedShortIds.contains(id);
 
   bool _lastEnableShorts = true;
@@ -64,10 +67,15 @@ class ShortsViewModel with ChangeNotifier {
     }
 
     _isLoading = true;
+    _shortsPage = 0;
+    _isLoadingMore = false;
     notifyListeners();
 
     try {
-      final rawShorts = await youtubeService.fetchRealLiveShorts();
+      final rawShorts = await youtubeService.fetchRealLiveShorts(
+        page: 0,
+        allow18Plus: !settingsViewModel.block18Plus,
+      );
 
       // Master 18+ & Category Whitelist filtering on Reels/Shorts
       final filterResult = FilterService.instance.filterList(
@@ -84,6 +92,45 @@ class ShortsViewModel with ChangeNotifier {
       _shorts = youtubeService.getCuratedShorts();
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Infinite Scrolling for Shorts: automatically fetches more shorts as user swipes down
+  Future<void> loadMoreShorts() async {
+    if (_isLoading || _isLoadingMore || !settingsViewModel.enableShorts) return;
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final nextPage = _shortsPage + 1;
+      final rawShorts = await youtubeService.fetchRealLiveShorts(
+        page: nextPage,
+        allow18Plus: !settingsViewModel.block18Plus,
+      );
+
+      final filterResult = FilterService.instance.filterList(
+        rawShorts,
+        enableShorts: true,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+      );
+
+      final allowed = filterResult.allowed;
+      if (allowed.isNotEmpty) {
+        final existingIds = _shorts.map((s) => s.id).toSet();
+        final uniqueNew = allowed.where((s) => !existingIds.contains(s.id)).toList();
+        if (uniqueNew.isNotEmpty) {
+          _shorts.addAll(uniqueNew);
+          _shortsPage = nextPage;
+        }
+      }
+    } catch (_) {
+    } finally {
+      _isLoadingMore = false;
       notifyListeners();
     }
   }

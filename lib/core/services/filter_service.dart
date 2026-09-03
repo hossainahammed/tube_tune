@@ -87,36 +87,82 @@ class FilterService {
     return false;
   }
 
-  /// Check if a video represents songs, movies, or general unrestricted entertainment
+  /// Check if a video represents songs, music, movies, or general pop entertainment
   bool isSongsOrMovies(VideoModel video) {
+    // 1. Explicit Category Tags
     if (video.categoryTag == AppCategories.categoryMusicSongs ||
         video.categoryTag == AppCategories.categoryMoviesCinema ||
         video.categoryTag == AppCategories.categoryEntertainment) {
       return true;
     }
 
-    final lowerTitle = video.title.toLowerCase();
-    final lowerDesc = video.description.toLowerCase();
-    final allText = '$lowerTitle $lowerDesc';
+    // Halal nasheed, news, islamic waz, educational tech are protected exceptions
+    if (video.categoryTag == AppCategories.categoryHalalNasheed ||
+        video.categoryTag == AppCategories.categoryIslamicWaz ||
+        video.categoryTag == AppCategories.categoryNews) {
+      return false;
+    }
 
-    const songMovieKeywords = [
-      'song', 'songs', 'music video', 'official video', 'gan', 'gaan', 'গান',
-      'movie', 'movies', 'full movie', 'cinema', 'trailer', 'film', 'চলচ্চিত্র', 'নাটক',
-      'bollywood', 'hollywood', 'pop music', 'album song', 'audio song'
+    final lowerTitle = video.title.toLowerCase();
+    final lowerAuthor = video.author.toLowerCase();
+    final lowerDesc = video.description.toLowerCase();
+    final tags = video.tags.map((t) => t.toLowerCase()).join(' ');
+    final allText = '$lowerTitle $lowerAuthor $lowerDesc $tags';
+
+    // Comprehensive music & songs keywords in English, Bengali, and Hindi
+    const songKeywords = [
+      'song', 'songs', 'music', 'gan', 'gaan', 'গান', 'গীতি', 'সঙ্গীত', 'সুর', 'শিল্পী',
+      'audio song', 'music video', 'official video', 'official audio', 'lyric video',
+      'lyrics video', 'lyrical', 'remix', 'soundtrack', 'ost', 'album', 'single track',
+      'pop music', 'pop hit', 'pop song', 'rock song', 'hip hop', 'rap song', 'edm',
+      'concert', 'live concert', 'unplugged', 'acoustic cover', 'vocal cover', 'cover song',
+      'dj remix', 'dj song', 'coke studio', 't-series', 'vevo', 'zee music', 'speed records',
+      'svf music', 'anupam recording', 'soundtek', 'laser vision', 'sangeet', 'geet',
+      'bangla song', 'hindi song', 'bollywood song', 'punjabi song', 'english song',
+      'romantic song', 'sad song', 'love song', 'party song', 'dance song', 'item song',
+      'ghazal', 'qawwali', 'bhajan', 'kirtan', 'karaoke', 'instrumental song', 'melody track',
+      'arijit singh', 'atif aslam', 'shreya ghoshal', 'neha kakkar', 'jubin nautiyal',
+      'taylor swift', 'ed sheeran', 'justin bieber', 'billie eilish', 'drake', 'the weeknd',
+      'bts', 'blackpink', 'dua lipa', 'eminem', 'shakira', 'rihanna', 'selena gomez',
+      'habib wahid', 'tahsan', 'james', 'ayub bachchu', 'miles', 'warfaze', 'artcell'
     ];
 
-    for (final kw in songMovieKeywords) {
+    for (final kw in songKeywords) {
       if (allText.contains(kw)) {
-        // Exception: halal nasheed, educational tech or news is not blocked
-        if (video.categoryTag == AppCategories.categoryHalalNasheed ||
-            video.categoryTag == AppCategories.categoryIslamicWaz ||
-            video.categoryTag == AppCategories.categoryNews) {
-          return false;
-        }
         return true;
       }
     }
 
+    // Comprehensive movie keywords
+    const movieKeywords = [
+      'movie', 'movies', 'full movie', 'cinema', 'trailer', 'official trailer', 'teaser',
+      'film', 'feature film', 'চলচ্চিত্র', 'নাটক', 'telefilm', 'natok', 'short film',
+      'bollywood movie', 'hollywood movie', 'bangla movie', 'south movie', 'tamil movie',
+      'hindi movie', 'action movie', 'blockbuster movie', 'box office'
+    ];
+
+    for (final kw in movieKeywords) {
+      if (allText.contains(kw)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /// Check if a search query is asking for songs, music, or movies
+  bool isSongOrMovieQuery(String query) {
+    final lower = query.toLowerCase().trim();
+    const queryKeywords = [
+      'song', 'songs', 'music', 'gan', 'gaan', 'গান', 'সঙ্গীত', 'সুর', 'audio',
+      'music video', 'lyrics', 'remix', 'album', 'pop', 'rock', 'rap', 'concert',
+      'movie', 'movies', 'film', 'cinema', 'trailer', 'চলচ্চিত্র', 'নাটক',
+      'coke studio', 'bollywood', 'hollywood', 'dj', 'arijit', 'atif aslam',
+      'taylor swift', 'bts', 'singer', 'band', 'soundtrack', 'track'
+    ];
+    for (final kw in queryKeywords) {
+      if (lower.contains(kw)) return true;
+    }
     return false;
   }
 

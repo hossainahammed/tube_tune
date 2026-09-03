@@ -11,6 +11,7 @@ class HomeViewModel with ChangeNotifier {
   final SettingsViewModel settingsViewModel;
 
   List<VideoModel> _videos = [];
+  List<VideoModel> _liveStreams = [];
   List<VideoModel> _shorts = [];
   bool _isLoading = false;
   String _selectedCategory = AppCategories.categoryAll;
@@ -20,24 +21,45 @@ class HomeViewModel with ChangeNotifier {
     required this.youtubeService,
     required this.settingsViewModel,
   }) {
-    // 1. Immediately populate instant curated videos for 0ms startup lag
-    final enabledIds = settingsViewModel.enabledCategories.map((c) => c.id).toSet();
+    // 1. Immediately populate instant filtered curated videos for 0ms startup lag
     final allCurated = youtubeService.getAllCuratedVideos();
-    if (enabledIds.isEmpty) {
-      _videos = allCurated;
+    final filterResult = FilterService.instance.filterList(
+      allCurated,
+      enableShorts: settingsViewModel.enableShorts,
+      block18Plus: settingsViewModel.block18Plus,
+      strictCategoryMode: settingsViewModel.strictCategoryMode,
+      enabledCategories: settingsViewModel.enabledCategories,
+      customBlacklist: settingsViewModel.customBlacklist,
+    );
+    _separateLiveAndFeed(filterResult.allowed);
+
+    if (settingsViewModel.enableShorts) {
+      final shortsFilter = FilterService.instance.filterList(
+        youtubeService.getCuratedShorts(),
+        enableShorts: true,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+      );
+      _shorts = shortsFilter.allowed;
     } else {
-      _videos = allCurated.where((v) => enabledIds.contains(v.categoryTag)).toList();
+      _shorts = [];
     }
-    _shorts = youtubeService.getCuratedShorts();
 
     settingsViewModel.addListener(_onSettingsChanged);
     loadFeed();
   }
 
+  bool _isLoadingMore = false;
+  int _currentPage = 0;
+
   // Getters
   List<VideoModel> get videos => _videos;
+  List<VideoModel> get liveStreams => _liveStreams;
   List<VideoModel> get shorts => _shorts;
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
   String get selectedCategory => _selectedCategory;
   String? get errorMessage => _errorMessage;
   bool get showShortsShelf => settingsViewModel.enableShorts && _shorts.isNotEmpty;
@@ -76,16 +98,22 @@ class HomeViewModel with ChangeNotifier {
     
     // Instant switch to curated content for the selected category
     if (categoryId == AppCategories.categoryAll) {
-      if (!settingsViewModel.block18Plus) {
-        _videos = youtubeService.getAllCuratedVideos();
-      } else {
-        final enabledIds = settingsViewModel.enabledCategories.map((c) => c.id).toSet();
-        _videos = youtubeService.getAllCuratedVideos()
-            .where((v) => (enabledIds.isEmpty || enabledIds.contains(v.categoryTag)) && !FilterService.instance.isSongsOrMovies(v))
-            .toList();
-      }
+      final allCurated = youtubeService.getAllCuratedVideos();
+      final filterResult = FilterService.instance.filterList(
+        allCurated,
+        enableShorts: settingsViewModel.enableShorts,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+      );
+      _separateLiveAndFeed(filterResult.allowed);
     } else {
-      _videos = youtubeService.getCuratedVideosByCategory(categoryId);
+      final raw = youtubeService.getCuratedVideosByCategory(categoryId);
+      final filtered = settingsViewModel.block18Plus
+          ? raw.where((v) => !FilterService.instance.isSongsOrMovies(v)).toList()
+          : raw;
+      _separateLiveAndFeed(filtered);
     }
     notifyListeners();
 
@@ -94,6 +122,8 @@ class HomeViewModel with ChangeNotifier {
 
   Future<void> loadFeed({String? category, bool isRefresh = false}) async {
     final catId = category ?? _selectedCategory;
+    _currentPage = 0;
+    _isLoadingMore = false;
     if (_videos.isEmpty) {
       _isLoading = true;
     }
@@ -137,7 +167,7 @@ class HomeViewModel with ChangeNotifier {
         allowed = curatedFilter.allowed;
       }
 
-      _videos = _sortByVisibleTime(allowed);
+      _separateLiveAndFeed(allowed, isRefresh: isRefresh);
 
       // Record any blocked items for stats
       if (filterResult.filteredCount > 0) {
@@ -167,7 +197,7 @@ class HomeViewModel with ChangeNotifier {
       if (_videos.isEmpty) {
         final fallbackCurated = youtubeService.getCuratedVideosByCategory(catId);
         if (fallbackCurated.isNotEmpty) {
-          _videos = _sortByVisibleTime(fallbackCurated);
+          _separateLiveAndFeed(fallbackCurated, isRefresh: isRefresh);
           _errorMessage = null;
         } else {
           _errorMessage = 'Unable to load feed. Please try again.';
@@ -179,46 +209,107 @@ class HomeViewModel with ChangeNotifier {
     }
   }
 
-  /// YouTube Visible Time Ranking:
-  /// 1. 24/7 Live Broadcasts (Somoy, BBC, Jamuna, CNN, Al Jazeera, etc.) prioritized at top
-  /// 2. Fresh Today / recent hours uploads positioned next
-  /// 3. Older catalog videos follow
-  List<VideoModel> _sortByVisibleTime(List<VideoModel> videos) {
-    if (videos.isEmpty) return [];
+  /// Infinite Scroll: loads more content seamlessly when the user scrolls near the bottom
+  Future<void> loadMore() async {
+    if (_isLoading || _isLoadingMore) return;
 
-    final liveVideos = <VideoModel>[];
-    final otherVideos = <VideoModel>[];
+    _isLoadingMore = true;
+    notifyListeners();
 
-    for (final v in videos) {
+    try {
+      final nextPage = _currentPage + 1;
+      final newRawVideos = await youtubeService.fetchMoreFeed(
+        currentCategoryId: _selectedCategory,
+        page: nextPage,
+        allow18Plus: !settingsViewModel.block18Plus,
+      );
+
+      final filterResult = FilterService.instance.filterList(
+        newRawVideos,
+        enableShorts: settingsViewModel.enableShorts,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+        currentSelectedCategoryId: _selectedCategory == AppCategories.categoryAll ? null : _selectedCategory,
+      );
+
+      final allowed = filterResult.allowed;
+      if (allowed.isNotEmpty) {
+        final existingIds = _videos.map((v) => v.id).toSet();
+        final uniqueNew = allowed.where((v) => !existingIds.contains(v.id)).toList();
+        if (uniqueNew.isNotEmpty) {
+          _videos.addAll(uniqueNew);
+          _currentPage = nextPage;
+        }
+      }
+    } catch (_) {
+      // Ignore network hiccups on pagination
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  /// Infinite Scroll for specific subscribed channel
+  Future<void> loadMoreForChannel(String channelName) async {
+    if (_isLoading || _isLoadingMore) return;
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    try {
+      final query = '$channelName latest videos news';
+      final newRawVideos = await youtubeService.searchLiveYouTube(query);
+
+      final filterResult = FilterService.instance.filterList(
+        newRawVideos,
+        enableShorts: settingsViewModel.enableShorts,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+      );
+
+      final allowed = filterResult.allowed;
+      if (allowed.isNotEmpty) {
+        final existingIds = _videos.map((v) => v.id).toSet();
+        final uniqueNew = allowed.where((v) => !existingIds.contains(v.id)).toList();
+        if (uniqueNew.isNotEmpty) {
+          _videos.addAll(uniqueNew);
+        }
+      }
+    } catch (_) {
+    } finally {
+      _isLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  /// YouTube Feed Separation & Hour-by-Hour Recency Ranking:
+  /// - Live Broadcasts are extracted into a dedicated live stream shelf (Breaking News)
+  /// - Feed videos (Hourly bulletins & reports) are sorted strictly by recency (15m ago, 30m ago, 1h ago, 2h ago...)
+  void _separateLiveAndFeed(List<VideoModel> items, {bool isRefresh = false}) {
+    final live = <VideoModel>[];
+    final feed = <VideoModel>[];
+    final seenLiveChannels = <String>{};
+
+    for (final v in items) {
       if (v.isLive ||
           v.uploadDate.toLowerCase().contains('live') ||
-          v.duration.inHours >= 10) {
-        liveVideos.add(v);
+          v.duration == Duration.zero) {
+        final key = v.author.toLowerCase().trim();
+        if (!seenLiveChannels.contains(key)) {
+          seenLiveChannels.add(key);
+          live.add(v);
+        }
       } else {
-        otherVideos.add(v);
+        feed.add(v);
       }
     }
 
-    final result = <VideoModel>[];
-    int lIdx = 0;
-    int oIdx = 0;
-
-    // Place up to 2 top live broadcasts at the very top
-    while (lIdx < liveVideos.length && lIdx < 2) {
-      result.add(liveVideos[lIdx++]);
-    }
-
-    // Interleave remaining: 2 on-demand videos, then 1 live stream
-    while (lIdx < liveVideos.length || oIdx < otherVideos.length) {
-      for (int i = 0; i < 2 && oIdx < otherVideos.length; i++) {
-        result.add(otherVideos[oIdx++]);
-      }
-      if (lIdx < liveVideos.length) {
-        result.add(liveVideos[lIdx++]);
-      }
-    }
-
-    return result;
+    _liveStreams = live;
+    _videos = feed;
   }
 
   @override

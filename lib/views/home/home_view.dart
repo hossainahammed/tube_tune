@@ -4,13 +4,41 @@ import '../../core/constants/app_colors.dart';
 import '../../viewmodels/home_viewmodel.dart';
 import '../shared/custom_app_bar.dart';
 import '../shared/timer_status_bar.dart';
+import 'widgets/breaking_news_shelf_widget.dart';
 import 'widgets/category_chips_widget.dart';
 import 'widgets/shorts_shelf_widget.dart';
 import 'widgets/video_card_widget.dart';
 
-/// Home Screen with animated Category Chips, conditional Shorts shelf, and filtered videos feed.
-class HomeView extends StatelessWidget {
+/// Home Screen with animated Category Chips, conditional Live Broadcasts shelf, Shorts shelf, and infinite scrolling feed.
+class HomeView extends StatefulWidget {
   const HomeView({super.key});
+
+  @override
+  State<HomeView> createState() => _HomeViewState();
+}
+
+class _HomeViewState extends State<HomeView> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 400) {
+      context.read<HomeViewModel>().loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +104,7 @@ class HomeView extends StatelessWidget {
     }
 
     // 3. Empty Feed / Filter Blocked Everything
-    if (homeVm.videos.isEmpty) {
+    if (homeVm.videos.isEmpty && homeVm.liveStreams.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -112,20 +140,57 @@ class HomeView extends StatelessWidget {
       );
     }
 
-    // 4. Safe List Building with dynamic Shorts Shelf Insertion
+    // 4. Authentic YouTube Segmented Feed with Infinite Scrolling
+    final hasLiveShelf = homeVm.liveStreams.isNotEmpty;
     final hasShortsShelf = homeVm.showShortsShelf && homeVm.shorts.isNotEmpty;
-    // Insert Shorts shelf after 2 videos if available, otherwise at the end
-    final shelfIndex = homeVm.videos.length >= 2 ? 2 : homeVm.videos.length;
-    final totalItemCount = homeVm.videos.length + (hasShortsShelf ? 1 : 0);
+
+    final liveShelfIndex = (hasLiveShelf && homeVm.videos.isNotEmpty) ? 1 : (hasLiveShelf ? 0 : -1);
+    final shortsShelfIndex = hasShortsShelf
+        ? (hasLiveShelf
+            ? (homeVm.videos.length >= 3 ? 3 : homeVm.videos.length + 1)
+            : (homeVm.videos.length >= 2 ? 2 : homeVm.videos.length))
+        : -1;
+
+    final totalExtraShelves = (hasLiveShelf ? 1 : 0) +
+        (hasShortsShelf ? 1 : 0) +
+        (homeVm.isLoadingMore ? 1 : 0);
+    final totalItemCount = homeVm.videos.length + totalExtraShelves;
 
     return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: totalItemCount,
       itemBuilder: (context, index) {
-        if (hasShortsShelf && index == shelfIndex) {
+        if (hasLiveShelf && index == liveShelfIndex) {
+          return BreakingNewsShelfWidget(liveStreams: homeVm.liveStreams);
+        }
+
+        if (hasShortsShelf && index == shortsShelfIndex) {
           return ShortsShelfWidget(shorts: homeVm.shorts);
         }
 
-        final videoIndex = (hasShortsShelf && index > shelfIndex) ? index - 1 : index;
+        // Bottom Infinite Scroll Spinner (Authentic YouTube bottom loader)
+        if (homeVm.isLoadingMore && index == totalItemCount - 1) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.youtubeRed,
+                ),
+              ),
+            ),
+          );
+        }
+
+        int extraBefore = 0;
+        if (hasLiveShelf && index > liveShelfIndex) extraBefore++;
+        if (hasShortsShelf && index > shortsShelfIndex) extraBefore++;
+        final videoIndex = index - extraBefore;
+
         if (videoIndex >= 0 && videoIndex < homeVm.videos.length) {
           return VideoCardWidget(video: homeVm.videos[videoIndex]);
         }

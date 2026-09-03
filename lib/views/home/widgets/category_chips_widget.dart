@@ -19,7 +19,14 @@ class CategoryChipsWidget extends StatelessWidget {
     if (!enabledCategories.any((c) => c.id == AppCategories.categoryLiveTv)) {
       enabledCategories.insert(0, AppCategories.liveTvCategory);
     }
-    if (!settingsVm.block18Plus) {
+    if (settingsVm.block18Plus) {
+      enabledCategories.removeWhere(
+        (c) =>
+            c.id == AppCategories.categoryMusicSongs ||
+            c.id == AppCategories.categoryMoviesCinema ||
+            c.id == AppCategories.categoryEntertainment,
+      );
+    } else {
       if (!enabledCategories.any((c) => c.id == AppCategories.categoryMusicSongs)) {
         enabledCategories.insert(1, AppCategories.musicCategory);
       }

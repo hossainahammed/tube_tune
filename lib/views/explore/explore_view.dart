@@ -31,8 +31,12 @@ class _ExploreViewState extends State<ExploreView> {
         children: [
           const TimerStatusBar(),
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
+            child: RefreshIndicator(
+              color: AppColors.youtubeRed,
+              onRefresh: () => homeVm.loadFeed(isRefresh: true),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Category Grid Banner
@@ -164,8 +168,9 @@ class _ExploreViewState extends State<ExploreView> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 }

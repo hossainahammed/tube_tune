@@ -156,7 +156,12 @@ class _ShortsViewState extends State<ShortsView> {
             controller: _pageController,
             scrollDirection: Axis.vertical,
             itemCount: shortsVm.shorts.length,
-            onPageChanged: shortsVm.setCurrentIndex,
+            onPageChanged: (index) {
+              shortsVm.setCurrentIndex(index);
+              if (index >= shortsVm.shorts.length - 3) {
+                shortsVm.loadMoreShorts();
+              }
+            },
             itemBuilder: (context, index) {
               final short = shortsVm.shorts[index];
               return ShortsPlayerItem(

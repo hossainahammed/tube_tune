@@ -17,8 +17,34 @@ class SubscriptionsView extends StatefulWidget {
 }
 
 class _SubscriptionsViewState extends State<SubscriptionsView> {
+  final ScrollController _scrollController = ScrollController();
   String _selectedSubFilter = 'All';
   String? _selectedChannel;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 400) {
+      if (_selectedChannel != null) {
+        context.read<HomeViewModel>().loadMoreForChannel(_selectedChannel!);
+      } else {
+        context.read<HomeViewModel>().loadMore();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,35 +223,58 @@ class _SubscriptionsViewState extends State<SubscriptionsView> {
               onRefresh: () => homeVm.loadFeed(isRefresh: true),
               color: AppColors.youtubeRed,
               child: filteredVideos.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.subscriptions_outlined, size: 56, color: AppColors.textMuted),
-                            const SizedBox(height: 12),
-                            Text(
-                              _selectedChannel != null
-                                  ? 'No videos found for $_selectedChannel'
-                                  : 'No videos available for this filter',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 80),
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.subscriptions_outlined, size: 56, color: AppColors.textMuted),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _selectedChannel != null
+                                      ? 'No videos found for $_selectedChannel'
+                                      : 'No videos available for this filter',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                                ),
+                                if (_selectedChannel != null) ...[
+                                  const SizedBox(height: 12),
+                                  TextButton(
+                                    onPressed: () => setState(() => _selectedChannel = null),
+                                    child: const Text('Show All Channels', style: TextStyle(color: AppColors.accentCyan)),
+                                  ),
+                                ],
+                              ],
                             ),
-                            if (_selectedChannel != null) ...[
-                              const SizedBox(height: 12),
-                              TextButton(
-                                onPressed: () => setState(() => _selectedChannel = null),
-                                child: const Text('Show All Channels', style: TextStyle(color: AppColors.accentCyan)),
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     )
                   : ListView.builder(
-                      itemCount: filteredVideos.length,
+                      controller: _scrollController,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: filteredVideos.length + (homeVm.isLoadingMore ? 1 : 0),
                       itemBuilder: (context, index) {
+                        if (homeVm.isLoadingMore && index == filteredVideos.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: SizedBox(
+                                width: 28,
+                                height: 28,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: AppColors.youtubeRed,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
                         final video = filteredVideos[index];
                         return VideoCardWidget(video: video);
                       },

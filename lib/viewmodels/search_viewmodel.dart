@@ -52,9 +52,10 @@ class SearchViewModel with ChangeNotifier {
     _isQueryBlocked = false;
     _errorMessage = null;
 
-    // Check if query is 18+ / blacklisted
+    // Check if query is 18+ / blacklisted or songs/movies under Safe Mode
     if (settingsViewModel.block18Plus &&
-        FilterService.instance.is18PlusText(trimmed, settingsViewModel.customBlacklist)) {
+        (FilterService.instance.is18PlusText(trimmed, settingsViewModel.customBlacklist) ||
+         FilterService.instance.isSongOrMovieQuery(trimmed))) {
       _isQueryBlocked = true;
       _searchResults = [];
       settingsViewModel.recordRejectionStats(filtered: 1, eighteenPlus: 1);

@@ -16,13 +16,13 @@ class ResponsiveCenteredWrapper extends StatelessWidget {
         mobile: child,
         tablet: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppBreakpoints.mobile),
+            constraints: const BoxConstraints(maxWidth: AppBreakpoints.tablet),
             child: ClipRect(child: child),
           ),
         ),
         desktop: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppBreakpoints.mobile),
+            constraints: const BoxConstraints(maxWidth: 1100),
             child: ClipRect(child: child),
           ),
         ),
