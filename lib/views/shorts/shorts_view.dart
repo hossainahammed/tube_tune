@@ -15,6 +15,7 @@ import '../../viewmodels/settings_viewmodel.dart';
 import '../../viewmodels/shorts_viewmodel.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
+import '../shared/app_snackbar.dart';
 import '../shared/channel_avatar_widget.dart';
 import '../shared/timer_status_bar.dart';
 
@@ -1334,14 +1335,7 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
 
   void _showToast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white, fontSize: 13)),
-        backgroundColor: const Color(0xFF282828),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppSnackBar.showInfo(context, message);
   }
 }
 

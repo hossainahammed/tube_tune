@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/timer_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
+import '../shared/app_snackbar.dart';
 import '../shared/custom_timer_dialog.dart';
 import '../shared/google_signin_dialog.dart';
 import '../shared/pin_dialog.dart';
@@ -38,9 +39,7 @@ class _SettingsViewState extends State<SettingsView> {
       );
       if (pin != timerState.pinCode) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Incorrect PIN!'), backgroundColor: AppColors.error),
-          );
+          AppSnackBar.showError(context, 'Incorrect PIN! Please try again.');
         }
         return false;
       }
@@ -79,7 +78,6 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   void _showSetPinDialog(BuildContext context, SettingsViewModel settingsVm) async {
-    final messenger = ScaffoldMessenger.of(context);
     final newPin = await showDialog<String>(
       context: context,
       builder: (_) => const PinDialog(
@@ -91,12 +89,9 @@ class _SettingsViewState extends State<SettingsView> {
 
     if (newPin != null && newPin.length == 4) {
       settingsVm.setPinCode(newPin, true);
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Security PIN set successfully!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
+      if (context.mounted) {
+        AppSnackBar.showSuccess(context, 'Security PIN set successfully!');
+      }
     }
   }
 
@@ -171,16 +166,51 @@ class _SettingsViewState extends State<SettingsView> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
-                      'Auto-Lock YouTube Timer',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      'Session Auto-Lock Timer',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                    subtitle: const Text(
-                      'Automatically locks the app after your session time and auto-unlocks after the break period.',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        _buildBadge(
+                          timerState.isTimerEnabled ? 'ACTIVE' : 'OFF',
+                          timerState.isTimerEnabled ? AppColors.accentAmber : AppColors.textMuted,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timerState.isTimerEnabled
+                              ? 'Active: App locks after session limit and unlocks after break time.'
+                              : 'Off: Continuous watching without session time limits.',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    secondary: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: timerState.isTimerEnabled
+                            ? AppColors.accentAmber.withValues(alpha: 0.15)
+                            : AppColors.surfaceLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.hourglass_bottom_rounded,
+                        color: timerState.isTimerEnabled ? AppColors.accentAmber : AppColors.textMuted,
+                        size: 20,
+                      ),
                     ),
                     value: timerState.isTimerEnabled,
-                    activeThumbColor: AppColors.youtubeRed,
-                    onChanged: (val) => settingsVm.setTimerEnabled(val),
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.accentAmber,
+                    onChanged: (val) {
+                      settingsVm.setTimerEnabled(val);
+                      AppSnackBar.showInfo(
+                        context,
+                        val ? 'Session Auto-Lock timer activated.' : 'Auto-Lock timer turned off.',
+                        icon: Icons.hourglass_bottom_rounded,
+                      );
+                    },
                   ),
 
                   if (timerState.isTimerEnabled) ...[
@@ -338,13 +368,48 @@ class _SettingsViewState extends State<SettingsView> {
                       'Daily Usage Schedule Windows',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                    subtitle: const Text(
-                      'Define one or more allowed time windows. The app auto-locks outside all active windows.',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        _buildBadge(
+                          timerState.isScheduleEnabled ? 'ACTIVE' : 'OFF',
+                          timerState.isScheduleEnabled ? AppColors.accentGreen : AppColors.textMuted,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          timerState.isScheduleEnabled
+                              ? 'Active: App is usable only inside defined schedule windows.'
+                              : 'Off: App is usable 24/7 without schedule locks.',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    secondary: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: timerState.isScheduleEnabled
+                            ? AppColors.accentGreen.withValues(alpha: 0.15)
+                            : AppColors.surfaceLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.bedtime_rounded,
+                        color: timerState.isScheduleEnabled ? AppColors.accentGreen : AppColors.textMuted,
+                        size: 20,
+                      ),
                     ),
                     value: timerState.isScheduleEnabled,
-                    activeThumbColor: AppColors.accentCyan,
-                    onChanged: (val) => settingsVm.setScheduleEnabled(val),
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.accentGreen,
+                    onChanged: (val) {
+                      settingsVm.setScheduleEnabled(val);
+                      AppSnackBar.showInfo(
+                        context,
+                        val ? 'Daily schedule windows activated.' : 'Schedule windows turned off.',
+                        icon: Icons.bedtime_rounded,
+                      );
+                    },
                   ),
 
                   if (timerState.isScheduleEnabled) ...[
@@ -479,58 +544,116 @@ class _SettingsViewState extends State<SettingsView> {
               children: [
                 // 1. Shorts / Reels Switch
                 SwitchListTile(
-                  title: const Text('Shorts & Reels Feed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text(
-                    'Toggle ON/OFF. When disabled, the Shorts tab and video shelves are completely removed to prevent endless scrolling.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  title: const Text(
+                    'Shorts & Reels Feed',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  secondary: const Icon(Icons.bolt_rounded, color: AppColors.youtubeRed),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildBadge(
+                        settingsVm.enableShorts ? 'ACTIVE' : 'BLOCKED',
+                        settingsVm.enableShorts ? AppColors.accentCyan : AppColors.textMuted,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        settingsVm.enableShorts
+                            ? 'Active: Vertical Reels tab and shelves appear in the feed.'
+                            : 'Blocked: Shorts tab and shelves are completely hidden to avoid doomscrolling.',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: settingsVm.enableShorts
+                          ? AppColors.accentCyan.withValues(alpha: 0.15)
+                          : AppColors.surfaceLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.bolt_rounded,
+                      color: settingsVm.enableShorts ? AppColors.accentCyan : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ),
                   value: settingsVm.enableShorts,
-                  activeThumbColor: AppColors.youtubeRed,
-                  onChanged: (val) => settingsVm.toggleEnableShorts(val),
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.accentCyan,
+                  onChanged: (val) {
+                    settingsVm.toggleEnableShorts(val);
+                    AppSnackBar.showInfo(
+                      context,
+                      val ? 'Shorts & Reels enabled in feed.' : 'Shorts & Reels blocked to save screen time.',
+                      icon: Icons.bolt_rounded,
+                    );
+                  },
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
 
-                // 2. 18+ & Unrestricted Mode Switch (All content, songs, movies)
+                // 2. 18+ & Unrestricted Mode Switch (All content vs Safe Mode)
                 SwitchListTile(
-                  title: const Text('18+ & All Content Mode (Songs, Movies, Adult)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: Text(
-                    settingsVm.allow18Plus
-                        ? 'ENABLED: All YouTube content is visible including songs, movies, entertainment, and adult content like default YouTube.'
-                        : 'DISABLED: Safe Mode active. 18+ content, songs, and movies are strictly blocked.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.textSecondary,
+                  title: const Text(
+                    '18+ & Adult Content Mode',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildBadge(
+                        settingsVm.allow18Plus ? 'UNRESTRICTED' : 'SAFE MODE',
+                        settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.accentGreen,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        settingsVm.allow18Plus
+                            ? 'Unrestricted: All YouTube content is visible including songs, movies, and entertainment like standard YouTube.'
+                            : 'Safe Mode Active: 18+ content, songs, and movies are strictly blocked.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: settingsVm.allow18Plus ? const Color(0xFFFF8A80) : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: settingsVm.allow18Plus
+                          ? AppColors.youtubeRed.withValues(alpha: 0.15)
+                          : AppColors.accentGreen.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      settingsVm.allow18Plus ? Icons.lock_open_rounded : Icons.shield_rounded,
+                      color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.accentGreen,
+                      size: 20,
                     ),
                   ),
-                  secondary: Icon(
-                    settingsVm.allow18Plus ? Icons.lock_open_rounded : Icons.lock_rounded,
-                    color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.islamicGreen,
-                  ),
                   value: settingsVm.allow18Plus,
-                  activeThumbColor: AppColors.youtubeRed,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.youtubeRed,
                   onChanged: (val) async {
                     if (val) {
                       final confirmed = await _showEnable18PlusConfirmDialog(context, settingsVm);
                       if (confirmed == true) {
                         await settingsVm.toggleAllow18Plus(true);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('18+ Mode enabled: Songs, movies, and all content are now visible like default YouTube.'),
-                              backgroundColor: AppColors.youtubeRed,
-                            ),
+                          AppSnackBar.showWarning(
+                            context,
+                            '18+ Mode enabled: Songs, movies, and all content are now visible.',
                           );
                         }
                       }
                     } else {
                       await settingsVm.toggleAllow18Plus(false);
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Safe Mode enabled: 18+ content, songs, and movies are strictly blocked.'),
-                            backgroundColor: AppColors.islamicGreen,
-                          ),
+                        AppSnackBar.showSuccess(
+                          context,
+                          'Safe Mode active: 18+ content, songs, and movies are strictly blocked.',
                         );
                       }
                     }
@@ -540,36 +663,110 @@ class _SettingsViewState extends State<SettingsView> {
 
                 // 3. Ad-Block Switch
                 SwitchListTile(
-                  title: const Text('Ad-Block Protection', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text(
-                    'Filters out pre-roll ads, mid-roll interruptions, and sponsored banners.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  title: const Text(
+                    'Ad-Block Protection',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  secondary: const Icon(Icons.block_rounded, color: AppColors.accentAmber),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildBadge(
+                        settingsVm.enableAdBlock ? 'ACTIVE' : 'OFF',
+                        settingsVm.enableAdBlock ? AppColors.accentGreen : AppColors.textMuted,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        settingsVm.enableAdBlock
+                            ? 'Active: All video ads, interruptions, and banners are automatically blocked.'
+                            : 'Off: Ad-blocking is disabled.',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: settingsVm.enableAdBlock
+                          ? AppColors.accentGreen.withValues(alpha: 0.15)
+                          : AppColors.surfaceLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.shield_rounded,
+                      color: settingsVm.enableAdBlock ? AppColors.accentGreen : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ),
                   value: settingsVm.enableAdBlock,
-                  activeThumbColor: AppColors.accentAmber,
-                  onChanged: (val) => settingsVm.toggleEnableAdBlock(val),
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.accentGreen,
+                  onChanged: (val) {
+                    settingsVm.toggleEnableAdBlock(val);
+                    if (val) {
+                      AppSnackBar.showSuccess(
+                        context,
+                        'Ad-Blocker active: Enjoy ad-free watching!',
+                        icon: Icons.shield_rounded,
+                      );
+                    } else {
+                      AppSnackBar.showInfo(context, 'Ad-Blocker disabled.');
+                    }
+                  },
                 ),
                 const Divider(color: AppColors.surfaceLight, height: 1),
 
                 // 4. Background Play Switch
                 SwitchListTile(
-                  title: const Text('Background Play', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  subtitle: const Text(
-                    'Keep audio playing when you switch to other apps or turn off your screen.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  title: const Text(
+                    'Background & Screen-Off Play',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  secondary: const Icon(Icons.headphones_rounded, color: AppColors.accentCyan),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      _buildBadge(
+                        settingsVm.enableBackgroundPlay ? 'ACTIVE' : 'OFF',
+                        settingsVm.enableBackgroundPlay ? const Color(0xFF64B5F6) : AppColors.textMuted,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        settingsVm.enableBackgroundPlay
+                            ? 'Active: Audio keeps playing when screen is locked or app is minimized.'
+                            : 'Off: Playback stops when leaving the app.',
+                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: settingsVm.enableBackgroundPlay
+                          ? const Color(0xFF64B5F6).withValues(alpha: 0.15)
+                          : AppColors.surfaceLight,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.headphones_rounded,
+                      color: settingsVm.enableBackgroundPlay ? const Color(0xFF64B5F6) : AppColors.textMuted,
+                      size: 20,
+                    ),
+                  ),
                   value: settingsVm.enableBackgroundPlay,
-                  activeThumbColor: AppColors.accentCyan,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: const Color(0xFF42A5F5),
                   onChanged: (val) {
                     settingsVm.toggleBackgroundPlay(val);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(val ? 'Background Play enabled.' : 'Background Play disabled.'),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
+                    if (val) {
+                      AppSnackBar.showSuccess(
+                        context,
+                        'Background Play active: Audio continues with screen off.',
+                        icon: Icons.headphones_rounded,
+                      );
+                    } else {
+                      AppSnackBar.showInfo(context, 'Background Play disabled.');
+                    }
                   },
                 ),
               ],
@@ -620,13 +817,48 @@ class _SettingsViewState extends State<SettingsView> {
                       'Strict Category Isolation',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                    subtitle: const Text(
-                      'When enabled, any video or short outside your selected categories is strictly blocked from feeds, search, and up-next.',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        _buildBadge(
+                          settingsVm.strictCategoryMode ? 'STRICT' : 'OFF',
+                          settingsVm.strictCategoryMode ? AppColors.accentGreen : AppColors.textMuted,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          settingsVm.strictCategoryMode
+                              ? 'Active: Videos outside enabled categories are strictly blocked.'
+                              : 'Off: Normal category browsing.',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    secondary: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: settingsVm.strictCategoryMode
+                            ? AppColors.accentGreen.withValues(alpha: 0.15)
+                            : AppColors.surfaceLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.filter_alt_rounded,
+                        color: settingsVm.strictCategoryMode ? AppColors.accentGreen : AppColors.textMuted,
+                        size: 20,
+                      ),
                     ),
                     value: settingsVm.strictCategoryMode,
-                    activeThumbColor: AppColors.islamicGreen,
-                    onChanged: (val) => settingsVm.toggleStrictCategoryMode(val),
+                    activeThumbColor: Colors.white,
+                    activeTrackColor: AppColors.accentGreen,
+                    onChanged: (val) {
+                      settingsVm.toggleStrictCategoryMode(val);
+                      AppSnackBar.showInfo(
+                        context,
+                        val ? 'Strict Category Isolation enabled.' : 'Strict Category Isolation turned off.',
+                        icon: Icons.filter_alt_rounded,
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 12),
@@ -956,6 +1188,26 @@ class _SettingsViewState extends State<SettingsView> {
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
       ],
+    );
+  }
+
+  Widget _buildBadge(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: color,
+          letterSpacing: 0.3,
+        ),
+      ),
     );
   }
 }

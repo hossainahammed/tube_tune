@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import 'app_snackbar.dart';
 
 /// Google Sign-In Bottom Sheet / Dialog matching official Google & YouTube aesthetic.
 class GoogleSignInDialog extends StatefulWidget {
@@ -28,17 +29,9 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
     await authVm.signInWithGoogle(name: name, email: email, avatarUrl: avatarUrl);
     if (mounted) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: AppColors.success),
-              const SizedBox(width: 8),
-              Text('Signed in as $name'),
-            ],
-          ),
-          backgroundColor: AppColors.surfaceElevated,
-        ),
+      AppSnackBar.showSuccess(
+        context,
+        'Signed in as $name',
       );
     }
   }

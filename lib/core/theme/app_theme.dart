@@ -86,16 +86,35 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.youtubeRed;
+            return Colors.white;
           }
-          return AppColors.textSecondary;
+          return const Color(0xFFB0B0B0);
         }),
         trackColor: WidgetStateProperty.resolveWith<Color>((states) {
           if (states.contains(WidgetState.selected)) {
-            return AppColors.youtubeRed.withValues(alpha: 0.4);
+            return AppColors.accentGreen;
           }
-          return AppColors.surfaceLight;
+          return const Color(0xFF333333);
         }),
+        trackOutlineColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return const Color(0xFF555555);
+        }),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.surfaceElevated,
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: AppColors.cardBorder, width: 0.8),
+        ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceLight,

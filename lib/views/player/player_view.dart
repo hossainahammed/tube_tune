@@ -15,6 +15,7 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
+import '../shared/app_snackbar.dart';
 import '../shared/channel_avatar_widget.dart';
 import '../shared/timer_status_bar.dart';
 
@@ -331,12 +332,10 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
         MaterialPageRoute(builder: (_) => PlayerView(video: nextVideo)),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No next video in playlist'),
-          duration: Duration(seconds: 2),
-          backgroundColor: AppColors.surfaceElevated,
-        ),
+      AppSnackBar.showInfo(
+        context,
+        'No next video in playlist',
+        icon: Icons.skip_next_rounded,
       );
     }
   }
@@ -987,15 +986,19 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                         ElevatedButton(
                           onPressed: () {
                             setState(() => _isSubscribed = !_isSubscribed);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(_isSubscribed
-                                    ? 'Subscribed to ${widget.video.author}'
-                                    : 'Subscription removed'),
-                                duration: const Duration(seconds: 2),
-                                backgroundColor: AppColors.surfaceElevated,
-                              ),
-                            );
+                            if (_isSubscribed) {
+                              AppSnackBar.showSuccess(
+                                context,
+                                'Subscribed to ${widget.video.author}',
+                                icon: Icons.subscriptions_rounded,
+                              );
+                            } else {
+                              AppSnackBar.showInfo(
+                                context,
+                                'Subscription removed',
+                                icon: Icons.notifications_off_outlined,
+                              );
+                            }
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _isSubscribed ? AppColors.surfaceElevated : Colors.white,
@@ -1113,12 +1116,10 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                           icon: Icons.download_outlined,
                           label: 'Download',
                           onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Downloading in 1080p (Ad-Free)...'),
-                                duration: Duration(seconds: 2),
-                                backgroundColor: AppColors.surfaceElevated,
-                              ),
+                            AppSnackBar.showInfo(
+                              context,
+                              'Downloading in 1080p (Ad-Free)...',
+                              icon: Icons.download_rounded,
                             );
                           },
                         ),
@@ -2370,13 +2371,6 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   }
 
   void _showToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white, fontSize: 13)),
-        backgroundColor: const Color(0xFF282828),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    AppSnackBar.showInfo(context, message);
   }
 }

@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
+import 'app_snackbar.dart';
 import 'google_signin_dialog.dart';
 
 /// Top YouTube App Bar with official YouTube logo styling, Cast, Notifications, Search, and Profile Avatar.
@@ -62,12 +63,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.cast_outlined, size: 22, color: Colors.white),
           tooltip: 'Cast to TV',
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Searching for cast devices...'),
-                duration: Duration(seconds: 2),
-                backgroundColor: AppColors.surfaceElevated,
-              ),
+            AppSnackBar.showInfo(
+              context,
+              'Searching for cast devices...',
+              icon: Icons.cast_connected_rounded,
             );
           },
         ),
@@ -77,12 +76,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           icon: const Icon(Icons.notifications_none_outlined, size: 23, color: Colors.white),
           tooltip: 'Notifications',
           onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No new notifications'),
-                duration: Duration(seconds: 2),
-                backgroundColor: AppColors.surfaceElevated,
-              ),
+            AppSnackBar.showInfo(
+              context,
+              'No new notifications',
+              icon: Icons.notifications_none_outlined,
             );
           },
         ),

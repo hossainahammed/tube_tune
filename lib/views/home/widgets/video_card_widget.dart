@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../models/video_model.dart';
 import '../../../viewmodels/player_viewmodel.dart';
 import '../../player/player_view.dart';
+import '../../shared/app_snackbar.dart';
 import '../../shared/channel_avatar_widget.dart';
 
 /// Full-width video card widget matching official YouTube mobile interface.
@@ -175,12 +176,10 @@ class VideoCardWidget extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(ctx);
                   context.read<PlayerViewModel>().toggleWatchLater(video);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Saved to Watch Later'),
-                      duration: Duration(seconds: 2),
-                      backgroundColor: AppColors.surfaceElevated,
-                    ),
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Saved to Watch Later',
+                    icon: Icons.watch_later_rounded,
                   );
                 },
               ),
@@ -189,12 +188,10 @@ class VideoCardWidget extends StatelessWidget {
                 title: const Text('Save to playlist', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Saved to playlist'),
-                      duration: Duration(seconds: 2),
-                      backgroundColor: AppColors.surfaceElevated,
-                    ),
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Saved to playlist',
+                    icon: Icons.playlist_add_check_rounded,
                   );
                 },
               ),
@@ -203,12 +200,10 @@ class VideoCardWidget extends StatelessWidget {
                 title: const Text('Download video', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Downloading video (Ad-Free)...'),
-                      duration: Duration(seconds: 2),
-                      backgroundColor: AppColors.surfaceElevated,
-                    ),
+                  AppSnackBar.showInfo(
+                    context,
+                    'Downloading video (Ad-Free)...',
+                    icon: Icons.download_rounded,
                   );
                 },
               ),
@@ -217,12 +212,10 @@ class VideoCardWidget extends StatelessWidget {
                 title: const Text('Share', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('https://youtu.be/${video.id} link copied!'),
-                      duration: const Duration(seconds: 2),
-                      backgroundColor: AppColors.surfaceElevated,
-                    ),
+                  AppSnackBar.showSuccess(
+                    context,
+                    'https://youtu.be/${video.id} link copied!',
+                    icon: Icons.link_rounded,
                   );
                 },
               ),
