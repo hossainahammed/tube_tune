@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/constants/app_colors.dart';
 import '../../models/timer_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -27,14 +28,18 @@ class _SettingsViewState extends State<SettingsView> {
     super.dispose();
   }
 
-  Future<bool?> _showEnable18PlusConfirmDialog(BuildContext context, SettingsViewModel settingsVm) async {
+  Future<bool?> _showEnable18PlusConfirmDialog(
+    BuildContext context,
+    SettingsViewModel settingsVm,
+  ) async {
     final timerState = settingsVm.timerService.state;
     if (timerState.pinCode.isNotEmpty) {
       final pin = await showDialog<String>(
         context: context,
         builder: (_) => const PinDialog(
           title: 'Enter Security PIN',
-          description: 'Enter your 4-digit PIN to enable 18+ and unrestricted content.',
+          description:
+              'Enter your 4-digit PIN to enable 18+ and unrestricted content.',
         ),
       );
       if (pin != timerState.pinCode) {
@@ -55,34 +60,53 @@ class _SettingsViewState extends State<SettingsView> {
           children: [
             Icon(Icons.warning_amber_rounded, color: AppColors.youtubeRed),
             SizedBox(width: 8),
-            Text('Enable 18+ Mode?', style: TextStyle(color: Colors.white, fontSize: 18)),
+            Text(
+              'Enable 18+ Mode?',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
           ],
         ),
         content: const Text(
           'Enabling this allows all unrestricted YouTube content — including songs, movies, trailers, entertainment, and adult content — exactly like official YouTube.\n\nAre you sure you want to enable this?',
-          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white70),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.youtubeRed),
-            child: const Text('Enable All Content', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.youtubeRed,
+            ),
+            child: const Text(
+              'Enable All Content',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showSetPinDialog(BuildContext context, SettingsViewModel settingsVm) async {
+  void _showSetPinDialog(
+    BuildContext context,
+    SettingsViewModel settingsVm,
+  ) async {
     final newPin = await showDialog<String>(
       context: context,
       builder: (_) => const PinDialog(
         title: 'Set Security PIN',
-        description: 'Set a 4-digit PIN to protect settings and timer controls.',
+        description:
+            'Set a 4-digit PIN to protect settings and timer controls.',
         isSettingNewPin: true,
       ),
     );
@@ -95,7 +119,10 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  void _showCustomDurationDialog(BuildContext context, SettingsViewModel settingsVm) async {
+  void _showCustomDurationDialog(
+    BuildContext context,
+    SettingsViewModel settingsVm,
+  ) async {
     final currentMins = settingsVm.timerService.state.sessionDurationMinutes;
     final selectedMins = await showDialog<int>(
       context: context,
@@ -107,7 +134,10 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  void _showAddScheduleWindowDialog(BuildContext context, SettingsViewModel settingsVm) async {
+  void _showAddScheduleWindowDialog(
+    BuildContext context,
+    SettingsViewModel settingsVm,
+  ) async {
     final newWindow = await showDialog<ScheduleWindow>(
       context: context,
       builder: (_) => const ScheduleWindowDialog(),
@@ -118,7 +148,11 @@ class _SettingsViewState extends State<SettingsView> {
     }
   }
 
-  void _showEditScheduleWindowDialog(BuildContext context, SettingsViewModel settingsVm, ScheduleWindow window) async {
+  void _showEditScheduleWindowDialog(
+    BuildContext context,
+    SettingsViewModel settingsVm,
+    ScheduleWindow window,
+  ) async {
     final updated = await showDialog<ScheduleWindow>(
       context: context,
       builder: (_) => ScheduleWindowDialog(initialWindow: window),
@@ -136,9 +170,7 @@ class _SettingsViewState extends State<SettingsView> {
     final timerState = settingsVm.timerService.state;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Filters & Parental Controls'),
-      ),
+      appBar: AppBar(title: const Text('Filters & Parental Controls')),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         children: [
@@ -167,7 +199,10 @@ class _SettingsViewState extends State<SettingsView> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Session Auto-Lock Timer',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,14 +210,19 @@ class _SettingsViewState extends State<SettingsView> {
                         const SizedBox(height: 4),
                         _buildBadge(
                           timerState.isTimerEnabled ? 'ACTIVE' : 'OFF',
-                          timerState.isTimerEnabled ? AppColors.accentAmber : AppColors.textMuted,
+                          timerState.isTimerEnabled
+                              ? AppColors.accentAmber
+                              : AppColors.textMuted,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           timerState.isTimerEnabled
                               ? 'Active: App locks after session limit and unlocks after break time.'
                               : 'Off: Continuous watching without session time limits.',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -196,7 +236,9 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       child: Icon(
                         Icons.hourglass_bottom_rounded,
-                        color: timerState.isTimerEnabled ? AppColors.accentAmber : AppColors.textMuted,
+                        color: timerState.isTimerEnabled
+                            ? AppColors.accentAmber
+                            : AppColors.textMuted,
                         size: 20,
                       ),
                     ),
@@ -207,7 +249,9 @@ class _SettingsViewState extends State<SettingsView> {
                       settingsVm.setTimerEnabled(val);
                       AppSnackBar.showInfo(
                         context,
-                        val ? 'Session Auto-Lock timer activated.' : 'Auto-Lock timer turned off.',
+                        val
+                            ? 'Session Auto-Lock timer activated.'
+                            : 'Auto-Lock timer turned off.',
                         icon: Icons.hourglass_bottom_rounded,
                       );
                     },
@@ -222,10 +266,16 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         const Text(
                           'Watch Session Limit:',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.youtubeRed.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
@@ -249,26 +299,41 @@ class _SettingsViewState extends State<SettingsView> {
                       runSpacing: 8,
                       children: [
                         ...[5, 15, 30, 45, 60, 90, 120].map((mins) {
-                          final isSelected = timerState.sessionDurationMinutes == mins;
+                          final isSelected =
+                              timerState.sessionDurationMinutes == mins;
                           return ChoiceChip(
                             label: Text(mins == 5 ? '5m (Test)' : '$mins m'),
                             selected: isSelected,
-                            onSelected: (_) => settingsVm.setSessionDuration(mins),
+                            onSelected: (_) =>
+                                settingsVm.setSessionDuration(mins),
                             selectedColor: AppColors.youtubeRed,
                             labelStyle: TextStyle(
-                              color: isSelected ? Colors.white : AppColors.textPrimary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
                               fontSize: 12,
                             ),
                             showCheckmark: false,
                           );
                         }),
                         ActionChip(
-                          avatar: const Icon(Icons.edit_calendar_rounded, size: 16, color: AppColors.accentCyan),
+                          avatar: const Icon(
+                            Icons.edit_calendar_rounded,
+                            size: 16,
+                            color: AppColors.accentCyan,
+                          ),
                           label: const Text('Custom Time'),
                           backgroundColor: AppColors.surfaceLight,
-                          labelStyle: const TextStyle(color: AppColors.accentCyan, fontSize: 12, fontWeight: FontWeight.bold),
-                          onPressed: () => _showCustomDurationDialog(context, settingsVm),
+                          labelStyle: const TextStyle(
+                            color: AppColors.accentCyan,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          onPressed: () =>
+                              _showCustomDurationDialog(context, settingsVm),
                         ),
                       ],
                     ),
@@ -281,12 +346,20 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         const Text(
                           'Break / Auto-Unlock After:',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.islamicGreen.withValues(alpha: 0.15),
+                            color: AppColors.islamicGreen.withValues(
+                              alpha: 0.15,
+                            ),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -305,15 +378,20 @@ class _SettingsViewState extends State<SettingsView> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [5, 10, 15, 30, 60].map((mins) {
-                        final isSelected = timerState.breakDurationMinutes == mins;
+                        final isSelected =
+                            timerState.breakDurationMinutes == mins;
                         return ChoiceChip(
                           label: Text('$mins m break'),
                           selected: isSelected,
                           onSelected: (_) => settingsVm.setBreakDuration(mins),
                           selectedColor: AppColors.islamicGreen,
                           labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : AppColors.textPrimary,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.black
+                                : AppColors.textPrimary,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             fontSize: 12,
                           ),
                           showCheckmark: false,
@@ -332,16 +410,30 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.hourglass_top_rounded, color: AppColors.accentAmber, size: 20),
+                          const Icon(
+                            Icons.hourglass_top_rounded,
+                            color: AppColors.accentAmber,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Remaining in Active Session', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                const Text(
+                                  'Remaining in Active Session',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
                                 Text(
                                   timerState.sessionRemainingFormatted,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ],
                             ),
@@ -349,8 +441,13 @@ class _SettingsViewState extends State<SettingsView> {
                           TextButton.icon(
                             onPressed: () => settingsVm.resetSession(),
                             icon: const Icon(Icons.replay_rounded, size: 16),
-                            label: const Text('Reset', style: TextStyle(fontSize: 12)),
-                            style: TextButton.styleFrom(foregroundColor: AppColors.accentCyan),
+                            label: const Text(
+                              'Reset',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.accentCyan,
+                            ),
                           ),
                         ],
                       ),
@@ -366,7 +463,10 @@ class _SettingsViewState extends State<SettingsView> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Daily Usage Schedule Windows',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,14 +474,19 @@ class _SettingsViewState extends State<SettingsView> {
                         const SizedBox(height: 4),
                         _buildBadge(
                           timerState.isScheduleEnabled ? 'ACTIVE' : 'OFF',
-                          timerState.isScheduleEnabled ? AppColors.accentGreen : AppColors.textMuted,
+                          timerState.isScheduleEnabled
+                              ? AppColors.accentGreen
+                              : AppColors.textMuted,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           timerState.isScheduleEnabled
                               ? 'Active: App is usable only inside defined schedule windows.'
                               : 'Off: App is usable 24/7 without schedule locks.',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -395,7 +500,9 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       child: Icon(
                         Icons.bedtime_rounded,
-                        color: timerState.isScheduleEnabled ? AppColors.accentGreen : AppColors.textMuted,
+                        color: timerState.isScheduleEnabled
+                            ? AppColors.accentGreen
+                            : AppColors.textMuted,
                         size: 20,
                       ),
                     ),
@@ -406,7 +513,9 @@ class _SettingsViewState extends State<SettingsView> {
                       settingsVm.setScheduleEnabled(val);
                       AppSnackBar.showInfo(
                         context,
-                        val ? 'Daily schedule windows activated.' : 'Schedule windows turned off.',
+                        val
+                            ? 'Daily schedule windows activated.'
+                            : 'Schedule windows turned off.',
                         icon: Icons.bedtime_rounded,
                       );
                     },
@@ -419,20 +528,29 @@ class _SettingsViewState extends State<SettingsView> {
                     ...timerState.scheduleWindows.map((window) {
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.surfaceLight,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: window.isEnabled ? AppColors.accentCyan.withValues(alpha: 0.3) : AppColors.cardBorder,
+                            color: window.isEnabled
+                                ? AppColors.accentCyan.withValues(alpha: 0.3)
+                                : AppColors.cardBorder,
                             width: 0.8,
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
-                              window.isEnabled ? Icons.schedule_rounded : Icons.schedule_outlined,
-                              color: window.isEnabled ? AppColors.accentCyan : AppColors.textMuted,
+                              window.isEnabled
+                                  ? Icons.schedule_rounded
+                                  : Icons.schedule_outlined,
+                              color: window.isEnabled
+                                  ? AppColors.accentCyan
+                                  : AppColors.textMuted,
                               size: 20,
                             ),
                             const SizedBox(width: 10),
@@ -445,7 +563,9 @@ class _SettingsViewState extends State<SettingsView> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.bold,
-                                      color: window.isEnabled ? Colors.white : AppColors.textSecondary,
+                                      color: window.isEnabled
+                                          ? Colors.white
+                                          : AppColors.textSecondary,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -454,27 +574,43 @@ class _SettingsViewState extends State<SettingsView> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
-                                      color: window.isEnabled ? AppColors.accentCyan : AppColors.textMuted,
+                                      color: window.isEnabled
+                                          ? AppColors.accentCyan
+                                          : AppColors.textMuted,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textSecondary),
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: AppColors.textSecondary,
+                              ),
                               tooltip: 'Edit Window',
-                              onPressed: () => _showEditScheduleWindowDialog(context, settingsVm, window),
+                              onPressed: () => _showEditScheduleWindowDialog(
+                                context,
+                                settingsVm,
+                                window,
+                              ),
                             ),
                             if (timerState.scheduleWindows.length > 1)
                               IconButton(
-                                icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                  color: AppColors.error,
+                                ),
                                 tooltip: 'Delete Window',
-                                onPressed: () => settingsVm.removeScheduleWindow(window.id),
+                                onPressed: () =>
+                                    settingsVm.removeScheduleWindow(window.id),
                               ),
                             Switch(
                               value: window.isEnabled,
                               activeThumbColor: AppColors.accentCyan,
-                              onChanged: (val) => settingsVm.toggleScheduleWindow(window.id, val),
+                              onChanged: (val) => settingsVm
+                                  .toggleScheduleWindow(window.id, val),
                             ),
                           ],
                         ),
@@ -487,13 +623,29 @@ class _SettingsViewState extends State<SettingsView> {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => _showAddScheduleWindowDialog(context, settingsVm),
-                        icon: const Icon(Icons.add_rounded, size: 20, color: AppColors.accentCyan),
-                        label: const Text('Add Time Window', style: TextStyle(color: AppColors.accentCyan, fontWeight: FontWeight.bold)),
+                        onPressed: () =>
+                            _showAddScheduleWindowDialog(context, settingsVm),
+                        icon: const Icon(
+                          Icons.add_rounded,
+                          size: 20,
+                          color: AppColors.accentCyan,
+                        ),
+                        label: const Text(
+                          'Add Time Window',
+                          style: TextStyle(
+                            color: AppColors.accentCyan,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppColors.accentCyan, width: 1),
+                          side: const BorderSide(
+                            color: AppColors.accentCyan,
+                            width: 1,
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -504,23 +656,40 @@ class _SettingsViewState extends State<SettingsView> {
                   // PIN Code Protection Setting
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.pin_outlined, color: AppColors.textSecondary),
-                    title: const Text('Security PIN Lock', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    leading: const Icon(
+                      Icons.pin_outlined,
+                      color: AppColors.textSecondary,
+                    ),
+                    title: const Text(
+                      'Security PIN Lock',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     subtitle: Text(
                       timerState.pinCode.isNotEmpty
                           ? 'PIN is active (****)'
                           : 'Set a 4-digit PIN to lock settings & break screen',
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     trailing: OutlinedButton(
                       onPressed: () => _showSetPinDialog(context, settingsVm),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: AppColors.cardBorder),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
                       ),
                       child: Text(
                         timerState.pinCode.isNotEmpty ? 'Change' : 'Set PIN',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
                   ),
@@ -554,14 +723,19 @@ class _SettingsViewState extends State<SettingsView> {
                       const SizedBox(height: 4),
                       _buildBadge(
                         settingsVm.enableShorts ? 'ACTIVE' : 'BLOCKED',
-                        settingsVm.enableShorts ? AppColors.accentCyan : AppColors.textMuted,
+                        settingsVm.enableShorts
+                            ? AppColors.accentCyan
+                            : AppColors.textMuted,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         settingsVm.enableShorts
                             ? 'Active: Vertical Reels tab and shelves appear in the feed.'
                             : 'Blocked: Shorts tab and shelves are completely hidden to avoid doomscrolling.',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -575,7 +749,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     child: Icon(
                       Icons.bolt_rounded,
-                      color: settingsVm.enableShorts ? AppColors.accentCyan : AppColors.textMuted,
+                      color: settingsVm.enableShorts
+                          ? AppColors.accentCyan
+                          : AppColors.textMuted,
                       size: 20,
                     ),
                   ),
@@ -586,7 +762,9 @@ class _SettingsViewState extends State<SettingsView> {
                     settingsVm.toggleEnableShorts(val);
                     AppSnackBar.showInfo(
                       context,
-                      val ? 'Shorts & Reels enabled in feed.' : 'Shorts & Reels blocked to save screen time.',
+                      val
+                          ? 'Shorts & Reels enabled in feed.'
+                          : 'Shorts & Reels blocked to save screen time.',
                       icon: Icons.bolt_rounded,
                     );
                   },
@@ -605,7 +783,9 @@ class _SettingsViewState extends State<SettingsView> {
                       const SizedBox(height: 4),
                       _buildBadge(
                         settingsVm.allow18Plus ? 'UNRESTRICTED' : 'SAFE MODE',
-                        settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.accentGreen,
+                        settingsVm.allow18Plus
+                            ? AppColors.youtubeRed
+                            : AppColors.accentGreen,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -614,7 +794,9 @@ class _SettingsViewState extends State<SettingsView> {
                             : 'Safe Mode Active: 18+ content, songs, and movies are strictly blocked.',
                         style: TextStyle(
                           fontSize: 12,
-                          color: settingsVm.allow18Plus ? const Color(0xFFFF8A80) : AppColors.textSecondary,
+                          color: settingsVm.allow18Plus
+                              ? const Color(0xFFFF8A80)
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -628,8 +810,12 @@ class _SettingsViewState extends State<SettingsView> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      settingsVm.allow18Plus ? Icons.lock_open_rounded : Icons.shield_rounded,
-                      color: settingsVm.allow18Plus ? AppColors.youtubeRed : AppColors.accentGreen,
+                      settingsVm.allow18Plus
+                          ? Icons.lock_open_rounded
+                          : Icons.shield_rounded,
+                      color: settingsVm.allow18Plus
+                          ? AppColors.youtubeRed
+                          : AppColors.accentGreen,
                       size: 20,
                     ),
                   ),
@@ -638,7 +824,10 @@ class _SettingsViewState extends State<SettingsView> {
                   activeTrackColor: AppColors.youtubeRed,
                   onChanged: (val) async {
                     if (val) {
-                      final confirmed = await _showEnable18PlusConfirmDialog(context, settingsVm);
+                      final confirmed = await _showEnable18PlusConfirmDialog(
+                        context,
+                        settingsVm,
+                      );
                       if (confirmed == true) {
                         await settingsVm.toggleAllow18Plus(true);
                         if (context.mounted) {
@@ -673,14 +862,19 @@ class _SettingsViewState extends State<SettingsView> {
                       const SizedBox(height: 4),
                       _buildBadge(
                         settingsVm.enableAdBlock ? 'ACTIVE' : 'OFF',
-                        settingsVm.enableAdBlock ? AppColors.accentGreen : AppColors.textMuted,
+                        settingsVm.enableAdBlock
+                            ? AppColors.accentGreen
+                            : AppColors.textMuted,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         settingsVm.enableAdBlock
                             ? 'Active: All video ads, interruptions, and banners are automatically blocked.'
                             : 'Off: Ad-blocking is disabled.',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -694,7 +888,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     child: Icon(
                       Icons.shield_rounded,
-                      color: settingsVm.enableAdBlock ? AppColors.accentGreen : AppColors.textMuted,
+                      color: settingsVm.enableAdBlock
+                          ? AppColors.accentGreen
+                          : AppColors.textMuted,
                       size: 20,
                     ),
                   ),
@@ -728,14 +924,19 @@ class _SettingsViewState extends State<SettingsView> {
                       const SizedBox(height: 4),
                       _buildBadge(
                         settingsVm.enableBackgroundPlay ? 'ACTIVE' : 'OFF',
-                        settingsVm.enableBackgroundPlay ? const Color(0xFF64B5F6) : AppColors.textMuted,
+                        settingsVm.enableBackgroundPlay
+                            ? const Color(0xFF64B5F6)
+                            : AppColors.textMuted,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         settingsVm.enableBackgroundPlay
                             ? 'Active: Audio keeps playing when screen is locked or app is minimized.'
                             : 'Off: Playback stops when leaving the app.',
-                        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -749,7 +950,9 @@ class _SettingsViewState extends State<SettingsView> {
                     ),
                     child: Icon(
                       Icons.headphones_rounded,
-                      color: settingsVm.enableBackgroundPlay ? const Color(0xFF64B5F6) : AppColors.textMuted,
+                      color: settingsVm.enableBackgroundPlay
+                          ? const Color(0xFF64B5F6)
+                          : AppColors.textMuted,
                       size: 20,
                     ),
                   ),
@@ -765,7 +968,10 @@ class _SettingsViewState extends State<SettingsView> {
                         icon: Icons.headphones_rounded,
                       );
                     } else {
-                      AppSnackBar.showInfo(context, 'Background Play disabled.');
+                      AppSnackBar.showInfo(
+                        context,
+                        'Background Play disabled.',
+                      );
                     }
                   },
                 ),
@@ -791,7 +997,11 @@ class _SettingsViewState extends State<SettingsView> {
                 children: [
                   const Text(
                     'Preset Focus Modes',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
 
@@ -801,10 +1011,26 @@ class _SettingsViewState extends State<SettingsView> {
                     runSpacing: 8,
                     children: [
                       _buildFocusModeChip(settingsVm, 'all', '🌟 All'),
-                      _buildFocusModeChip(settingsVm, 'news', '📰 All News (National & Global)'),
-                      _buildFocusModeChip(settingsVm, 'islamic_waz', '🕌 Islamic & Waz Only'),
-                      _buildFocusModeChip(settingsVm, 'kids_cartoons', '👶 Kids & Cartoons Only'),
-                      _buildFocusModeChip(settingsVm, 'education_tech', '🎓 Tech & Education Only'),
+                      _buildFocusModeChip(
+                        settingsVm,
+                        'news',
+                        '📰 All News (National & Global)',
+                      ),
+                      _buildFocusModeChip(
+                        settingsVm,
+                        'islamic_waz',
+                        '🕌 Islamic & Waz Only',
+                      ),
+                      _buildFocusModeChip(
+                        settingsVm,
+                        'kids_cartoons',
+                        '👶 Kids & Cartoons Only',
+                      ),
+                      _buildFocusModeChip(
+                        settingsVm,
+                        'education_tech',
+                        '🎓 Tech & Education Only',
+                      ),
                     ],
                   ),
 
@@ -815,7 +1041,10 @@ class _SettingsViewState extends State<SettingsView> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text(
                       'Strict Category Isolation',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,14 +1052,19 @@ class _SettingsViewState extends State<SettingsView> {
                         const SizedBox(height: 4),
                         _buildBadge(
                           settingsVm.strictCategoryMode ? 'STRICT' : 'OFF',
-                          settingsVm.strictCategoryMode ? AppColors.accentGreen : AppColors.textMuted,
+                          settingsVm.strictCategoryMode
+                              ? AppColors.accentGreen
+                              : AppColors.textMuted,
                         ),
                         const SizedBox(height: 4),
                         Text(
                           settingsVm.strictCategoryMode
                               ? 'Active: Videos outside enabled categories are strictly blocked.'
                               : 'Off: Normal category browsing.',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -844,7 +1078,9 @@ class _SettingsViewState extends State<SettingsView> {
                       ),
                       child: Icon(
                         Icons.filter_alt_rounded,
-                        color: settingsVm.strictCategoryMode ? AppColors.accentGreen : AppColors.textMuted,
+                        color: settingsVm.strictCategoryMode
+                            ? AppColors.accentGreen
+                            : AppColors.textMuted,
                         size: 20,
                       ),
                     ),
@@ -855,7 +1091,9 @@ class _SettingsViewState extends State<SettingsView> {
                       settingsVm.toggleStrictCategoryMode(val);
                       AppSnackBar.showInfo(
                         context,
-                        val ? 'Strict Category Isolation enabled.' : 'Strict Category Isolation turned off.',
+                        val
+                            ? 'Strict Category Isolation enabled.'
+                            : 'Strict Category Isolation turned off.',
                         icon: Icons.filter_alt_rounded,
                       );
                     },
@@ -864,7 +1102,11 @@ class _SettingsViewState extends State<SettingsView> {
                   const SizedBox(height: 12),
                   const Text(
                     'Allowed Categories Individual Toggles:',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 8),
 
@@ -875,15 +1117,22 @@ class _SettingsViewState extends State<SettingsView> {
                       secondary: Icon(category.icon, color: category.color),
                       title: Text(
                         category.name,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       subtitle: Text(
                         category.description,
-                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       value: category.isEnabled,
                       activeColor: category.color,
-                      onChanged: (val) => settingsVm.toggleCategory(category.id, val ?? true),
+                      onChanged: (val) =>
+                          settingsVm.toggleCategory(category.id, val ?? true),
                     );
                   }),
                 ],
@@ -909,7 +1158,10 @@ class _SettingsViewState extends State<SettingsView> {
                 children: [
                   const Text(
                     'Block specific words, channels, or topics from ever appearing:',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -917,14 +1169,26 @@ class _SettingsViewState extends State<SettingsView> {
                       Expanded(
                         child: TextField(
                           controller: _blacklistController,
-                          style: const TextStyle(fontSize: 13, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
                           decoration: InputDecoration(
                             hintText: 'Enter keyword to block (e.g. gossip)',
-                            hintStyle: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            hintStyle: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
                             filled: true,
                             fillColor: AppColors.surfaceLight,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                         ),
                       ),
@@ -932,14 +1196,18 @@ class _SettingsViewState extends State<SettingsView> {
                       ElevatedButton(
                         onPressed: () {
                           if (_blacklistController.text.isNotEmpty) {
-                            settingsVm.addBlacklistKeyword(_blacklistController.text);
+                            settingsVm.addBlacklistKeyword(
+                              _blacklistController.text,
+                            );
                             _blacklistController.clear();
                           }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.youtubeRed,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         child: const Text('Add'),
                       ),
@@ -952,10 +1220,21 @@ class _SettingsViewState extends State<SettingsView> {
                       runSpacing: 6,
                       children: settingsVm.customBlacklist.map((kw) {
                         return Chip(
-                          label: Text(kw, style: const TextStyle(fontSize: 11, color: Colors.white)),
+                          label: Text(
+                            kw,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.white,
+                            ),
+                          ),
                           backgroundColor: AppColors.surfaceElevated,
-                          deleteIcon: const Icon(Icons.close, size: 14, color: AppColors.error),
-                          onDeleted: () => settingsVm.removeBlacklistKeyword(kw),
+                          deleteIcon: const Icon(
+                            Icons.close,
+                            size: 14,
+                            color: AppColors.error,
+                          ),
+                          onDeleted: () =>
+                              settingsVm.removeBlacklistKeyword(kw),
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                         );
                       }).toList(),
@@ -982,9 +1261,21 @@ class _SettingsViewState extends State<SettingsView> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatItem('Total Filtered', '${settingsVm.totalVideosFiltered}', AppColors.accentCyan),
-                  _buildStatItem('18+ Blocked', '${settingsVm.total18PlusBlocked}', AppColors.islamicGreen),
-                  _buildStatItem('Shorts Blocked', '${settingsVm.totalShortsBlocked}', AppColors.youtubeRed),
+                  _buildStatItem(
+                    'Total Filtered',
+                    '${settingsVm.totalVideosFiltered}',
+                    AppColors.accentCyan,
+                  ),
+                  _buildStatItem(
+                    '18+ Blocked',
+                    '${settingsVm.total18PlusBlocked}',
+                    AppColors.islamicGreen,
+                  ),
+                  _buildStatItem(
+                    'Shorts Blocked',
+                    '${settingsVm.totalShortsBlocked}',
+                    AppColors.youtubeRed,
+                  ),
                 ],
               ),
             ),
@@ -1009,9 +1300,17 @@ class _SettingsViewState extends State<SettingsView> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: AppColors.surfaceElevated,
-                backgroundImage: user.avatarUrl.isNotEmpty ? NetworkImage(user.avatarUrl) : null,
+                backgroundImage: user.avatarUrl.isNotEmpty
+                    ? NetworkImage(user.avatarUrl)
+                    : null,
                 child: user.avatarUrl.isEmpty
-                    ? Text(user.name.isNotEmpty ? user.name[0] : 'U', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))
+                    ? Text(
+                        user.name.isNotEmpty ? user.name[0] : 'U',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      )
                     : null,
               ),
               const SizedBox(width: 14),
@@ -1023,26 +1322,44 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         Text(
                           user.name,
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.check_circle, color: AppColors.accentCyan, size: 15),
+                        const Icon(
+                          Icons.check_circle,
+                          color: AppColors.accentCyan,
+                          size: 15,
+                        ),
                       ],
                     ),
                     Text(
                       user.email,
-                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     const Text(
                       'Google Account Linked',
-                      style: TextStyle(fontSize: 10, color: AppColors.islamicGreen, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.islamicGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: AppColors.textSecondary,
+                ),
                 color: AppColors.surfaceElevated,
                 onSelected: (val) {
                   if (val == 'signout') {
@@ -1061,9 +1378,16 @@ class _SettingsViewState extends State<SettingsView> {
                     value: 'switch',
                     child: Row(
                       children: [
-                        Icon(Icons.switch_account, size: 18, color: Colors.white),
+                        Icon(
+                          Icons.switch_account,
+                          size: 18,
+                          color: Colors.white,
+                        ),
                         SizedBox(width: 8),
-                        Text('Switch Account', style: TextStyle(color: Colors.white, fontSize: 13)),
+                        Text(
+                          'Switch Account',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
+                        ),
                       ],
                     ),
                   ),
@@ -1073,7 +1397,13 @@ class _SettingsViewState extends State<SettingsView> {
                       children: [
                         Icon(Icons.logout, size: 18, color: AppColors.error),
                         SizedBox(width: 8),
-                        Text('Sign Out', style: TextStyle(color: AppColors.error, fontSize: 13)),
+                        Text(
+                          'Sign Out',
+                          style: TextStyle(
+                            color: AppColors.error,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1093,7 +1423,11 @@ class _SettingsViewState extends State<SettingsView> {
           children: [
             const Row(
               children: [
-                Icon(Icons.account_circle_outlined, size: 28, color: Color(0xFF4285F4)),
+                Icon(
+                  Icons.account_circle_outlined,
+                  size: 28,
+                  color: Color(0xFF4285F4),
+                ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1101,11 +1435,18 @@ class _SettingsViewState extends State<SettingsView> {
                     children: [
                       Text(
                         'Google / YouTube Account',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                       Text(
                         'Sign in to sync your subscriptions and history',
-                        style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -1126,15 +1467,27 @@ class _SettingsViewState extends State<SettingsView> {
                 },
                 icon: Container(
                   padding: const EdgeInsets.all(3),
-                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                  child: const Text('G', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Text(
+                    'G',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF4285F4),
+                    ),
+                  ),
                 ),
                 label: const Text('Sign in with Google'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.surfaceLight,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ),
@@ -1144,7 +1497,11 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildSectionHeader({required IconData icon, required String title, required Color color}) {
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required String title,
+    required Color color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       child: Row(
@@ -1164,7 +1521,11 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  Widget _buildFocusModeChip(SettingsViewModel settingsVm, String mode, String label) {
+  Widget _buildFocusModeChip(
+    SettingsViewModel settingsVm,
+    String mode,
+    String label,
+  ) {
     final isSelected = settingsVm.selectedFocusMode == mode;
     return ChoiceChip(
       label: Text(label),
@@ -1184,9 +1545,19 @@ class _SettingsViewState extends State<SettingsView> {
   Widget _buildStatItem(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
