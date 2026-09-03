@@ -316,22 +316,27 @@ class YoutubeService {
 
     if (currentCategoryId == AppCategories.categoryAll ||
         currentCategoryId.isEmpty) {
+      final now = DateTime.now();
+      final timeDescriptor = now.hour < 12
+          ? 'morning'
+          : (now.hour < 17 ? 'midday' : (now.hour < 21 ? 'evening' : 'night'));
+
       if (allow18Plus) {
         // UNRESTRICTED MODE: Fetch full official YouTube Home feed live from YouTube!
         final liveSearches = await Future.wait([
-          searchLiveYouTube('youtube trending', categoryTag: AppCategories.categoryAll),
-          searchLiveYouTube('popular videos global', categoryTag: AppCategories.categoryAll),
-          searchLiveYouTube('viral videos', categoryTag: AppCategories.categoryAll),
+          searchLiveYouTube('youtube trending today', categoryTag: AppCategories.categoryAll),
+          searchLiveYouTube('popular videos $timeDescriptor', categoryTag: AppCategories.categoryAll),
+          searchLiveYouTube('viral videos global', categoryTag: AppCategories.categoryAll),
         ]);
         for (final list in liveSearches) {
           rawResults.addAll(list);
         }
       } else {
-        // SAFE MODE (18+ Restricted): Comprehensive News & Information Hub directly from YouTube!
+        // SAFE MODE (18+ Restricted): Dynamic real-time News & Information Hub directly from YouTube!
         final liveSearches = await Future.wait([
-          searchLiveYouTube('bangladesh news latest', categoryTag: AppCategories.categoryNews),
-          searchLiveYouTube('world news today', categoryTag: AppCategories.categoryNews),
-          searchLiveYouTube('bangla news live tv', categoryTag: AppCategories.categoryNews),
+          searchLiveYouTube('bangladesh news $timeDescriptor update', categoryTag: AppCategories.categoryNews),
+          searchLiveYouTube('world news today latest', categoryTag: AppCategories.categoryNews),
+          searchLiveYouTube('bangla news bulletin live', categoryTag: AppCategories.categoryNews),
         ]);
         for (final list in liveSearches) {
           rawResults.addAll(list);
@@ -339,9 +344,11 @@ class YoutubeService {
       }
     } else if (currentCategoryId == AppCategories.categoryLiveTv ||
         currentCategoryId == AppCategories.categoryNews) {
+      final now = DateTime.now();
+      final timeDescriptor = now.hour < 12 ? 'morning' : (now.hour < 17 ? 'midday' : 'evening');
       final liveSearches = await Future.wait([
-        searchLiveYouTube('bangladesh news live stream', categoryTag: currentCategoryId),
-        searchLiveYouTube('world news live stream', categoryTag: currentCategoryId),
+        searchLiveYouTube('bangladesh news live stream $timeDescriptor', categoryTag: currentCategoryId),
+        searchLiveYouTube('world news live stream update', categoryTag: currentCategoryId),
       ]);
       for (final list in liveSearches) {
         rawResults.addAll(list);

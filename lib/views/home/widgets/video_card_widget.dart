@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/download_service.dart';
 import '../../../models/video_model.dart';
 import '../../../viewmodels/player_viewmodel.dart';
 import '../../player/player_view.dart';
@@ -196,15 +197,50 @@ class VideoCardWidget extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.download_outlined, color: Colors.white),
-                title: const Text('Download video', style: TextStyle(color: Colors.white, fontSize: 14)),
-                onTap: () {
+                leading: Icon(
+                  DownloadService.instance.isDownloaded(video.id)
+                      ? Icons.download_done_rounded
+                      : Icons.download_outlined,
+                  color: DownloadService.instance.isDownloaded(video.id)
+                      ? const Color(0xFF3EA6FF)
+                      : Colors.white,
+                ),
+                title: Text(
+                  DownloadService.instance.isDownloaded(video.id)
+                      ? 'Downloaded (Offline)'
+                      : 'Download video',
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+                onTap: () async {
                   Navigator.pop(ctx);
+                  if (DownloadService.instance.isDownloaded(video.id)) {
+                    AppSnackBar.showInfo(
+                      context,
+                      'Video is already downloaded for offline mode',
+                      icon: Icons.check_circle_rounded,
+                    );
+                    return;
+                  }
                   AppSnackBar.showInfo(
                     context,
-                    'Downloading video (Ad-Free)...',
+                    'Downloading "${video.title}"...',
                     icon: Icons.download_rounded,
                   );
+                  final success = await DownloadService.instance.downloadVideo(video);
+                  if (context.mounted) {
+                    if (success) {
+                      AppSnackBar.showSuccess(
+                        context,
+                        'Downloaded! Ready in Library > Downloads.',
+                        icon: Icons.download_done_rounded,
+                      );
+                    } else {
+                      AppSnackBar.showError(
+                        context,
+                        'Failed to download video. Please try again.',
+                      );
+                    }
+                  }
                 },
               ),
               ListTile(

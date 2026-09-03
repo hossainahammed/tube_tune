@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/services/cast_service.dart';
+import '../../core/services/download_service.dart';
 import '../../core/services/notification_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
+import 'downloads_view.dart';
 import '../notifications/notifications_view.dart';
 import '../player/player_view.dart';
 import '../search/search_view.dart';
@@ -460,6 +462,56 @@ class LibraryView extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
+
+                  // Downloads (Offline videos)
+                  AnimatedBuilder(
+                    animation: DownloadService.instance,
+                    builder: (context, _) {
+                      final count = DownloadService.instance.downloadedCount;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const DownloadsView()),
+                          );
+                        },
+                        leading: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.download_for_offline_rounded,
+                            color: Color(0xFF3EA6FF),
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Downloads',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '$count video${count == 1 ? '' : 's'} available offline',
+                          style: const TextStyle(
+                            color: Color(0xFFAAAAAA),
+                            fontSize: 12,
+                          ),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 14,
+                          color: Color(0xFFAAAAAA),
+                        ),
+                      );
+                    },
+                  ),
 
                   ListTile(
                     contentPadding: EdgeInsets.zero,

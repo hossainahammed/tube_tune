@@ -4,6 +4,8 @@ import 'package:tube_tune/core/services/auth_service.dart';
 import 'package:tube_tune/core/services/cast_service.dart';
 import 'package:tube_tune/core/services/filter_service.dart';
 import 'package:tube_tune/core/services/notification_service.dart';
+import 'package:tube_tune/core/services/recommendation_service.dart';
+import 'package:tube_tune/models/download_task_model.dart';
 import 'package:tube_tune/models/timer_model.dart';
 import 'package:tube_tune/models/video_model.dart';
 
@@ -370,6 +372,85 @@ void main() {
       expect(AuthService.formatNameFromEmail('hossain.ahmed@gmail.com'), 'Hossain Ahmed');
       expect(AuthService.formatNameFromEmail('tanvir_hasan_bd@gmail.com'), 'Tanvir Hasan Bd');
       expect(AuthService.formatNameFromEmail('simpleuser@gmail.com'), 'Simpleuser');
+    });
+
+    test('12. RecommendationService: Extracts top channels and keywords for personalized YouTube suggestions', () {
+      final recService = RecommendationService.instance;
+      const history = [
+        VideoModel(
+          id: 'v1',
+          title: 'Flutter Advanced Architecture Tutorial',
+          author: 'Flutter Dev',
+          channelId: 'ch1',
+          thumbnailUrl: '',
+          duration: Duration(minutes: 10),
+          viewCount: 1000,
+          uploadDate: '1 day ago',
+          categoryTag: AppCategories.categoryEducationTech,
+        ),
+        VideoModel(
+          id: 'v2',
+          title: 'Flutter Riverpod and State Management Guide',
+          author: 'Flutter Dev',
+          channelId: 'ch1',
+          thumbnailUrl: '',
+          duration: Duration(minutes: 15),
+          viewCount: 2000,
+          uploadDate: '2 days ago',
+          categoryTag: AppCategories.categoryEducationTech,
+        ),
+        VideoModel(
+          id: 'v3',
+          title: 'Bangladesh vs India Cricket Highlights',
+          author: 'Cricket World',
+          channelId: 'ch2',
+          thumbnailUrl: '',
+          duration: Duration(minutes: 12),
+          viewCount: 50000,
+          uploadDate: '3 hours ago',
+          categoryTag: AppCategories.categorySports,
+        ),
+      ];
+
+      final topChannels = recService.getTopChannels(history);
+      expect(topChannels.first, 'Flutter Dev');
+
+      final keywords = recService.getTopInterestKeywords(history, ['Dart tips', 'Tech']);
+      expect(keywords.contains('Dart tips'), isTrue);
+      expect(keywords.contains('Tech'), isTrue);
+      expect(keywords.contains('flutter'), isTrue);
+    });
+
+    test('13. DownloadedVideoModel: Formats file sizes and serializes correctly', () {
+      const video = VideoModel(
+        id: 'dl_1',
+        title: 'Offline Flutter Video',
+        author: 'Code Channel',
+        channelId: 'ch_code',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        duration: Duration(minutes: 8),
+        viewCount: 500,
+        uploadDate: '1 week ago',
+        categoryTag: AppCategories.categoryEducationTech,
+      );
+
+      final dl = DownloadedVideoModel(
+        video: video,
+        localFilePath: '/data/user/0/com.tubetune.app/downloads/dl_1.mp4',
+        fileSizeBytes: 45 * 1024 * 1024, // 45 MB
+        downloadedAt: DateTime(2026, 9, 3),
+      );
+
+      expect(dl.formattedSize, '45.0 MB');
+
+      final json = dl.toJson();
+      expect(json['localFilePath'], '/data/user/0/com.tubetune.app/downloads/dl_1.mp4');
+      expect(json['fileSizeBytes'], 45 * 1024 * 1024);
+
+      final parsed = DownloadedVideoModel.fromJson(json);
+      expect(parsed.video.id, 'dl_1');
+      expect(parsed.localFilePath, dl.localFilePath);
+      expect(parsed.formattedSize, '45.0 MB');
     });
   });
 }

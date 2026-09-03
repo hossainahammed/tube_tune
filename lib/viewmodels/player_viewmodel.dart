@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../core/services/background_audio_service.dart';
+import '../core/services/download_service.dart';
 import '../core/services/filter_service.dart';
 import '../core/services/pip_service.dart';
 import '../core/services/storage_service.dart';
@@ -166,6 +168,36 @@ class PlayerViewModel with ChangeNotifier {
 
   Future<void> _initVideoPlayer(VideoModel video) async {
     final cleanId = cleanYoutubeId(video.id);
+
+    // 1. Check if the video is already downloaded locally for instant offline playback!
+    final localPath = DownloadService.instance.getLocalFilePath(cleanId) ??
+        DownloadService.instance.getLocalFilePath(video.id);
+    if (localPath != null && localPath.isNotEmpty) {
+      try {
+        final localFile = File(localPath);
+        if (localFile.existsSync() && localFile.lengthSync() > 0) {
+          final vc = VideoPlayerController.file(localFile);
+          await vc.initialize();
+          if (_currentVideo?.id != video.id) {
+            vc.dispose();
+            return;
+          }
+          vc.addListener(_onVideoControllerUpdate);
+          await vc.play();
+          await vc.setPlaybackSpeed(_playbackSpeed);
+
+          _videoController = vc;
+          _isNativeVideoReady = true;
+          _isLoadingStream = false;
+          _isPlaying = true;
+          PipService.instance.setVideoPlaying(true);
+          notifyListeners();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Error playing offline file: $e');
+      }
+    }
 
     try {
       final streamUrl = await youtubeService.getDirectStreamUrl(

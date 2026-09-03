@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'core/services/auth_service.dart';
 import 'core/services/cast_service.dart';
+import 'core/services/download_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/timer_service.dart';
@@ -47,6 +48,7 @@ void main() async {
   final timerService = await TimerService.getInstance(storageService);
   final authService = await AuthService.getInstance(storageService);
   final youtubeService = YoutubeService.instance;
+  await DownloadService.instance.init();
 
   runApp(
     TubeTuneApp(
@@ -93,12 +95,14 @@ class TubeTuneApp extends StatelessWidget {
           create: (ctx) => HomeViewModel(
             youtubeService: youtubeService,
             settingsViewModel: ctx.read<SettingsViewModel>(),
+            storageService: storageService,
           ),
           update: (ctx, settingsVm, homeVm) =>
               homeVm ??
               HomeViewModel(
                 youtubeService: youtubeService,
                 settingsViewModel: settingsVm,
+                storageService: storageService,
               ),
         ),
         ChangeNotifierProxyProvider<SettingsViewModel, SearchViewModel>(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/comment_model.dart';
+import '../../models/download_task_model.dart';
 import '../../models/timer_model.dart';
 import '../../models/user_model.dart';
 import '../../models/video_model.dart';
@@ -189,6 +190,22 @@ class StorageService {
     await _prefs?.setStringList(_keyWatchHistory, list);
   }
 
+  // --- Search History ---
+  static const _keyRecentSearches = 'recent_searches';
+
+  List<String> getRecentSearches() {
+    return _prefs?.getStringList(_keyRecentSearches) ?? [];
+  }
+
+  Future<void> saveRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    final list = getRecentSearches();
+    list.removeWhere((q) => q.toLowerCase() == trimmed.toLowerCase());
+    list.insert(0, trimmed);
+    await _prefs?.setStringList(_keyRecentSearches, list.take(20).toList());
+  }
+
   List<VideoModel> getWatchLater() {
     final list = _prefs?.getStringList(_keyWatchLater) ?? [];
     return list.map((e) {
@@ -223,5 +240,24 @@ class StorageService {
     existing.insert(0, comment);
     final encoded = existing.map((c) => jsonEncode(c.toJson())).toList();
     await _prefs?.setStringList('comments_$videoId', encoded);
+  }
+
+  // --- Offline Downloaded Videos Persistence ---
+  static const _keyDownloadedVideos = 'downloaded_videos';
+
+  List<DownloadedVideoModel> getDownloadedVideos() {
+    final list = _prefs?.getStringList(_keyDownloadedVideos) ?? [];
+    return list.map((e) {
+      try {
+        return DownloadedVideoModel.fromJson(jsonDecode(e) as Map<String, dynamic>);
+      } catch (_) {
+        return null;
+      }
+    }).whereType<DownloadedVideoModel>().toList();
+  }
+
+  Future<void> saveDownloadedVideos(List<DownloadedVideoModel> videos) async {
+    final list = videos.map((v) => jsonEncode(v.toJson())).toList();
+    await _prefs?.setStringList(_keyDownloadedVideos, list);
   }
 }

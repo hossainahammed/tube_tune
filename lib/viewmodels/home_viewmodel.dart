@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import '../core/constants/app_categories.dart';
 import '../core/services/filter_service.dart';
+import '../core/services/recommendation_service.dart';
+import '../core/services/storage_service.dart';
 import '../core/services/youtube_service.dart';
 import '../models/video_model.dart';
 import 'settings_viewmodel.dart';
@@ -9,10 +11,12 @@ import 'settings_viewmodel.dart';
 class HomeViewModel with ChangeNotifier {
   final YoutubeService youtubeService;
   final SettingsViewModel settingsViewModel;
+  final StorageService? storageService;
 
   List<VideoModel> _videos = [];
   List<VideoModel> _liveStreams = [];
   List<VideoModel> _shorts = [];
+  List<VideoModel> _suggestedVideos = [];
   bool _isLoading = false;
   String _selectedCategory = AppCategories.categoryAll;
   String? _errorMessage;
@@ -20,6 +24,7 @@ class HomeViewModel with ChangeNotifier {
   HomeViewModel({
     required this.youtubeService,
     required this.settingsViewModel,
+    this.storageService,
   }) {
     // 1. Immediately populate instant filtered curated videos for 0ms startup lag
     final allCurated = youtubeService.getAllCuratedVideos();
@@ -58,6 +63,7 @@ class HomeViewModel with ChangeNotifier {
   List<VideoModel> get videos => _videos;
   List<VideoModel> get liveStreams => _liveStreams;
   List<VideoModel> get shorts => _shorts;
+  List<VideoModel> get suggestedVideos => _suggestedVideos;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   String get selectedCategory => _selectedCategory;
@@ -178,7 +184,31 @@ class HomeViewModel with ChangeNotifier {
         );
       }
 
-      // 3. Load and filter Shorts shelf if enabled
+      // 3. Fetch personalized suggestions if on "All" feed
+      if (catId == AppCategories.categoryAll) {
+        try {
+          final storage = storageService ?? await StorageService.getInstance();
+          final rawSuggested = await RecommendationService.instance.fetchSuggestedVideos(
+            youtubeService,
+            storage,
+          );
+          final suggestedFilter = FilterService.instance.filterList(
+            rawSuggested,
+            enableShorts: false,
+            block18Plus: settingsViewModel.block18Plus,
+            strictCategoryMode: settingsViewModel.strictCategoryMode,
+            enabledCategories: settingsViewModel.enabledCategories,
+            customBlacklist: settingsViewModel.customBlacklist,
+          );
+          _suggestedVideos = suggestedFilter.allowed;
+        } catch (_) {
+          _suggestedVideos = [];
+        }
+      } else {
+        _suggestedVideos = [];
+      }
+
+      // 4. Load and filter Shorts shelf if enabled
       if (settingsViewModel.enableShorts) {
         final rawShorts = youtubeService.getCuratedShorts();
         final shortsFilter = FilterService.instance.filterList(

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/services/filter_service.dart';
+import '../core/services/storage_service.dart';
 import '../core/services/youtube_service.dart';
 import '../models/video_model.dart';
 import 'settings_viewmodel.dart';
@@ -80,6 +81,9 @@ class SearchViewModel with ChangeNotifier {
       );
 
       _searchResults = filterResult.allowed;
+      if (_searchResults.isNotEmpty) {
+        StorageService.getInstance().then((s) => s.saveRecentSearch(trimmed));
+      }
 
       if (filterResult.filteredCount > 0) {
         settingsViewModel.recordRejectionStats(

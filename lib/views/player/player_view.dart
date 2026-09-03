@@ -7,11 +7,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/cast_service.dart';
+import '../../core/services/download_service.dart';
 import '../../core/services/pip_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
-import '../../core/services/cast_service.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
@@ -952,15 +953,67 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                         ),
                         const SizedBox(width: 8),
 
-                        // Download Button (Ad-Free)
-                        _buildActionPill(
-                          icon: Icons.download_outlined,
-                          label: 'Download',
-                          onTap: () {
-                            AppSnackBar.showInfo(
-                              context,
-                              'Downloading in 1080p (Ad-Free)...',
-                              icon: Icons.download_rounded,
+                        // Download Button (Real Offline Download)
+                        AnimatedBuilder(
+                          animation: DownloadService.instance,
+                          builder: (context, _) {
+                            final isDownloaded = DownloadService.instance.isDownloaded(widget.video.id);
+                            final isDownloading = DownloadService.instance.isDownloading(widget.video.id);
+                            final progress = (DownloadService.instance.getProgress(widget.video.id) * 100).toInt();
+
+                            String label = 'Download';
+                            IconData icon = Icons.download_outlined;
+                            if (isDownloaded) {
+                              label = 'Downloaded';
+                              icon = Icons.download_done_rounded;
+                            } else if (isDownloading) {
+                              label = '$progress%';
+                              icon = Icons.downloading_rounded;
+                            }
+
+                            return _buildActionPill(
+                              icon: icon,
+                              label: label,
+                              onTap: () async {
+                                if (isDownloaded) {
+                                  AppSnackBar.showInfo(
+                                    context,
+                                    'This video is downloaded for offline playback',
+                                    icon: Icons.check_circle_rounded,
+                                  );
+                                  return;
+                                }
+                                if (isDownloading) {
+                                  AppSnackBar.showInfo(
+                                    context,
+                                    'Downloading in progress ($progress%)...',
+                                    icon: Icons.downloading_rounded,
+                                  );
+                                  return;
+                                }
+
+                                AppSnackBar.showInfo(
+                                  context,
+                                  'Downloading "${widget.video.title}" for offline mode...',
+                                  icon: Icons.download_rounded,
+                                );
+
+                                final success = await DownloadService.instance.downloadVideo(widget.video);
+                                if (context.mounted) {
+                                  if (success) {
+                                    AppSnackBar.showSuccess(
+                                      context,
+                                      'Download complete! Ready for offline viewing in Library.',
+                                      icon: Icons.download_done_rounded,
+                                    );
+                                  } else {
+                                    AppSnackBar.showError(
+                                      context,
+                                      'Failed to download video. Please check your connection.',
+                                    );
+                                  }
+                                }
+                              },
                             );
                           },
                         ),

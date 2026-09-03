@@ -7,6 +7,7 @@ import '../shared/timer_status_bar.dart';
 import 'widgets/breaking_news_shelf_widget.dart';
 import 'widgets/category_chips_widget.dart';
 import 'widgets/shorts_shelf_widget.dart';
+import 'widgets/suggested_shelf_widget.dart';
 import 'widgets/video_card_widget.dart';
 
 /// Home Screen with animated Category Chips, conditional Live Broadcasts shelf, Shorts shelf, and infinite scrolling feed.
@@ -140,63 +141,65 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    // 4. Authentic YouTube Segmented Feed with Infinite Scrolling
-    final hasLiveShelf = homeVm.liveStreams.isNotEmpty;
-    final hasShortsShelf = homeVm.showShortsShelf && homeVm.shorts.isNotEmpty;
+    // 4. Authentic YouTube Segmented Feed with Infinite Scrolling & Personalized Suggestions
+    final List<Widget> feedItems = [];
 
-    final liveShelfIndex = (hasLiveShelf && homeVm.videos.isNotEmpty) ? 1 : (hasLiveShelf ? 0 : -1);
-    final shortsShelfIndex = hasShortsShelf
-        ? (hasLiveShelf
-            ? (homeVm.videos.length >= 3 ? 3 : homeVm.videos.length + 1)
-            : (homeVm.videos.length >= 2 ? 2 : homeVm.videos.length))
-        : -1;
+    // Live Streams / Breaking News Shelf
+    if (homeVm.liveStreams.isNotEmpty) {
+      feedItems.add(BreakingNewsShelfWidget(liveStreams: homeVm.liveStreams));
+    }
 
-    final totalExtraShelves = (hasLiveShelf ? 1 : 0) +
-        (hasShortsShelf ? 1 : 0) +
-        (homeVm.isLoadingMore ? 1 : 0);
-    final totalItemCount = homeVm.videos.length + totalExtraShelves;
+    // First batch of regular feed videos
+    final initialCount = homeVm.videos.length >= 2 ? 2 : homeVm.videos.length;
+    for (int i = 0; i < initialCount; i++) {
+      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+    }
+
+    // YouTube-style Personalized Suggested Videos Shelf
+    if (homeVm.suggestedVideos.isNotEmpty) {
+      feedItems.add(SuggestedShelfWidget(suggestedVideos: homeVm.suggestedVideos));
+    }
+
+    // Second batch of regular videos
+    final secondBatchEnd = homeVm.videos.length >= 5 ? 5 : homeVm.videos.length;
+    for (int i = initialCount; i < secondBatchEnd; i++) {
+      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+    }
+
+    // Shorts Shelf
+    if (homeVm.showShortsShelf && homeVm.shorts.isNotEmpty) {
+      feedItems.add(ShortsShelfWidget(shorts: homeVm.shorts));
+    }
+
+    // Remaining regular feed videos
+    for (int i = secondBatchEnd; i < homeVm.videos.length; i++) {
+      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+    }
+
+    // Bottom Infinite Scroll Spinner
+    if (homeVm.isLoadingMore) {
+      feedItems.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: AppColors.youtubeRed,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: totalItemCount,
-      itemBuilder: (context, index) {
-        if (hasLiveShelf && index == liveShelfIndex) {
-          return BreakingNewsShelfWidget(liveStreams: homeVm.liveStreams);
-        }
-
-        if (hasShortsShelf && index == shortsShelfIndex) {
-          return ShortsShelfWidget(shorts: homeVm.shorts);
-        }
-
-        // Bottom Infinite Scroll Spinner (Authentic YouTube bottom loader)
-        if (homeVm.isLoadingMore && index == totalItemCount - 1) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.youtubeRed,
-                ),
-              ),
-            ),
-          );
-        }
-
-        int extraBefore = 0;
-        if (hasLiveShelf && index > liveShelfIndex) extraBefore++;
-        if (hasShortsShelf && index > shortsShelfIndex) extraBefore++;
-        final videoIndex = index - extraBefore;
-
-        if (videoIndex >= 0 && videoIndex < homeVm.videos.length) {
-          return VideoCardWidget(video: homeVm.videos[videoIndex]);
-        }
-
-        return const SizedBox.shrink();
-      },
+      itemCount: feedItems.length,
+      itemBuilder: (context, index) => feedItems[index],
     );
   }
 }
