@@ -10,6 +10,8 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import 'downloads_view.dart';
+import 'liked_videos_view.dart';
+import 'watch_later_view.dart';
 import '../notifications/notifications_view.dart';
 import '../player/player_view.dart';
 import '../search/search_view.dart';
@@ -515,6 +517,14 @@ class LibraryView extends StatelessWidget {
 
                   ListTile(
                     contentPadding: EdgeInsets.zero,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const WatchLaterView(),
+                        ),
+                      );
+                    },
                     leading: Container(
                       width: 42,
                       height: 42,
@@ -552,6 +562,14 @@ class LibraryView extends StatelessWidget {
 
                   ListTile(
                     contentPadding: EdgeInsets.zero,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LikedVideosView(),
+                        ),
+                      );
+                    },
                     leading: Container(
                       width: 42,
                       height: 42,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -15,7 +16,9 @@ import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/player_viewmodel.dart';
 import 'viewmodels/search_viewmodel.dart';
 import 'viewmodels/settings_viewmodel.dart';
+
 import 'package:just_audio_background/just_audio_background.dart';
+
 import 'viewmodels/shorts_viewmodel.dart';
 import 'views/main_navigation_view.dart';
 import 'core/responsive/responsive_centered_wrapper.dart';
@@ -23,32 +26,35 @@ import 'core/responsive/responsive_centered_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize background audio foreground service for continuous playback
-  try {
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.tubetune.app.channel.audio',
-      androidNotificationChannelName: 'TubeTune Background Playback',
-      androidNotificationOngoing: true,
-      androidNotificationIcon: 'drawable/ic_bg_music',
-    );
-  } catch (_) {}
+  // Mobile-only foreground services & system UI styling
+  if (!kIsWeb) {
+    try {
+      await JustAudioBackground.init(
+        androidNotificationChannelId: 'com.tubetune.app.channel.audio',
+        androidNotificationChannelName: 'TubeTune Background Playback',
+        androidNotificationOngoing: true,
+        androidNotificationIcon: 'drawable/ic_bg_music',
+      );
+    } catch (_) {}
 
-  // Set system navigation bar & status bar style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF0F0F0F),
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarColor: Color(0xFF0F0F0F),
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+    );
+  }
 
   // Initialize Core Services
   final storageService = await StorageService.getInstance();
   final timerService = await TimerService.getInstance(storageService);
   final authService = await AuthService.getInstance(storageService);
   final youtubeService = YoutubeService.instance;
-  await DownloadService.instance.init();
+  if (!kIsWeb) {
+    await DownloadService.instance.init();
+  }
 
   runApp(
     TubeTuneApp(

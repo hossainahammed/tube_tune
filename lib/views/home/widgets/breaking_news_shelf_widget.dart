@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../models/video_model.dart';
+import '../../../viewmodels/home_viewmodel.dart';
 import '../../../viewmodels/player_viewmodel.dart';
 import '../../player/player_view.dart';
+import '../../shared/app_snackbar.dart';
 import '../../shared/channel_avatar_widget.dart';
 
 /// Horizontal carousel for Live News & 24/7 Broadcasts identical to official YouTube mobile.
@@ -60,7 +62,12 @@ class BreakingNewsShelfWidget extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              const Icon(Icons.more_vert, size: 20, color: Color(0xFFAAAAAA)),
+              IconButton(
+                icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFFAAAAAA)),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () => _showShelfOptionsBottomSheet(context),
+              ),
             ],
           ),
         ),
@@ -188,6 +195,12 @@ class BreakingNewsShelfWidget extends StatelessWidget {
                               ],
                             ),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFFAAAAAA)),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _showLiveCardOptionsBottomSheet(context, video),
+                          ),
                         ],
                       ),
                     ],
@@ -200,6 +213,148 @@ class BreakingNewsShelfWidget extends StatelessWidget {
         const SizedBox(height: 12),
         const Divider(color: AppColors.surfaceLight, height: 1, thickness: 1),
       ],
+    );
+  }
+
+  void _showShelfOptionsBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.refresh_rounded, color: Colors.white),
+                title: const Text('Refresh live broadcasts', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<HomeViewModel>().loadFeed(isRefresh: true);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Refreshing live broadcasts...',
+                    icon: Icons.refresh_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.sensors_off_rounded, color: Colors.white),
+                title: const Text('Not interested in live broadcasts', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showInfo(
+                    context,
+                    'Section feedback saved',
+                    icon: Icons.check_circle_outline,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.feedback_outlined, color: Colors.white),
+                title: const Text('Send feedback', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showInfo(
+                    context,
+                    'Thank you for your feedback',
+                    icon: Icons.thumb_up_alt_outlined,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLiveCardOptionsBottomSheet(BuildContext context, VideoModel video) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.watch_later_outlined, color: Colors.white),
+                title: const Text('Save to Watch Later', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<PlayerViewModel>().toggleWatchLater(video);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Saved to Watch Later',
+                    icon: Icons.watch_later_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.playlist_add, color: Colors.white),
+                title: const Text('Save to playlist', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Saved to playlist',
+                    icon: Icons.playlist_add_check_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share_outlined, color: Colors.white),
+                title: const Text('Share live broadcast', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Link copied: https://youtu.be/${video.id}',
+                    icon: Icons.link_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.block_outlined, color: Colors.white),
+                title: Text("Don't recommend ${video.author}", style: const TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showInfo(
+                    context,
+                    "We won't recommend this live channel again",
+                    icon: Icons.check_circle_outline,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

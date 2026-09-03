@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -40,7 +41,28 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   bool _isSubscribed = false;
   bool _isDisliked = false;
   bool _isInPip = false;
+  bool _isFullScreen = false;
   final TextEditingController _commentInputController = TextEditingController();
+
+  void _toggleFullScreen() {
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+    });
+    if (!kIsWeb) {
+      if (_isFullScreen) {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.portraitUp,
+        ]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      }
+    }
+  }
 
   static String cleanYoutubeId(String raw) {
     final trimmed = raw.trim();
@@ -343,6 +365,10 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     // NOTE: We deliberately do NOT dispose playerVm.videoController here!
     // This allows the video and audio to continue playing seamlessly in the Mini-Player!
     _commentInputController.dispose();
+    if (!kIsWeb && _isFullScreen) {
+      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
     super.dispose();
   }
 
@@ -411,10 +437,20 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 26),
+                      icon: Icon(
+                        _isFullScreen ? Icons.fullscreen_exit : Icons.keyboard_arrow_down,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (_isFullScreen) {
+                          _toggleFullScreen();
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
                     ),
                     const Spacer(),
                     // Autoplay switch pill
@@ -561,10 +597,14 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.fullscreen, color: Colors.white, size: 22),
+                      icon: Icon(
+                        _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: () {},
+                      onPressed: _toggleFullScreen,
                     ),
                   ],
                 ),
@@ -693,17 +733,40 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     final isLiked = playerVm.isLiked(widget.video.id);
     final displayLikeCount = playerVm.getDisplayLikeCount(widget.video);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: false,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return SizedBox(
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
-              child: OverflowBox(
+    if (_isFullScreen) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          _toggleFullScreen();
+        },
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: SizedBox.expand(
+            child: _buildVideoPlayerSurface(playerVm),
+          ),
+        ),
+      );
+    }
+
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, _) {
+        if (_isFullScreen) {
+          _toggleFullScreen();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        resizeToAvoidBottomInset: true,
+        body: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SizedBox(
+                width: constraints.maxWidth,
+                height: constraints.maxHeight,
+                child: OverflowBox(
                 minWidth: constraints.maxWidth,
                 maxWidth: constraints.maxWidth,
                 minHeight: 0.0,
@@ -975,6 +1038,14 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                               icon: icon,
                               label: label,
                               onTap: () async {
+                                if (kIsWeb) {
+                                  AppSnackBar.showInfo(
+                                    context,
+                                    'Offline video downloads are available on mobile app',
+                                    icon: Icons.smartphone_rounded,
+                                  );
+                                  return;
+                                }
                                 if (isDownloaded) {
                                   AppSnackBar.showInfo(
                                     context,
@@ -1130,8 +1201,9 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   },
 ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildActionPill({
     required IconData icon,

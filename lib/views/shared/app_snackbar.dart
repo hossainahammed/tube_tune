@@ -19,14 +19,11 @@ class AppSnackBar {
     SnackBarAction? action,
   }) {
     final mediaQuery = MediaQuery.of(context);
-    final topPadding = mediaQuery.padding.top;
-    final screenHeight = mediaQuery.size.height;
+    final bottomInset = mediaQuery.viewInsets.bottom;
 
-    // Position the floating snackbar right below the top status bar / app bar
-    final bottomMargin = (screenHeight - topPadding - 88).clamp(
-      80.0,
-      double.infinity,
-    );
+    // Position floating snackbar comfortably above keyboard when typing,
+    // or above the bottom navigation bar and mini-player like official YouTube
+    final bottomMargin = bottomInset > 0 ? bottomInset + 12 : 76.0;
 
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();

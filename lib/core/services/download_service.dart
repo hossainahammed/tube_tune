@@ -22,10 +22,12 @@ class DownloadService extends ChangeNotifier {
   int get downloadedCount => _downloadedVideos.length;
 
   bool isDownloaded(String videoId) {
+    if (kIsWeb) return false;
     return _downloadedVideos.any((d) => d.video.id == videoId);
   }
 
   bool isDownloading(String videoId) {
+    if (kIsWeb) return false;
     return _activeDownloadIds.contains(videoId);
   }
 
@@ -34,6 +36,7 @@ class DownloadService extends ChangeNotifier {
   }
 
   String? getLocalFilePath(String videoId) {
+    if (kIsWeb) return null;
     try {
       final item = _downloadedVideos.firstWhere((d) => d.video.id == videoId);
       final file = File(item.localFilePath);
@@ -45,6 +48,7 @@ class DownloadService extends ChangeNotifier {
   }
 
   Future<void> init() async {
+    if (kIsWeb) return;
     try {
       final storage = await StorageService.getInstance();
       final persisted = storage.getDownloadedVideos();
@@ -73,6 +77,7 @@ class DownloadService extends ChangeNotifier {
 
   /// Download a video for offline mode
   Future<bool> downloadVideo(VideoModel video) async {
+    if (kIsWeb) return false;
     if (isDownloaded(video.id) || isDownloading(video.id)) {
       return true;
     }
@@ -199,6 +204,7 @@ class DownloadService extends ChangeNotifier {
 
   /// Delete downloaded offline video from storage
   Future<void> deleteDownloadedVideo(String videoId) async {
+    if (kIsWeb) return;
     try {
       final index = _downloadedVideos.indexWhere((d) => d.video.id == videoId);
       if (index != -1) {

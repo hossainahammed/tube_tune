@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_exp;
 
 import '../../models/category_model.dart';
@@ -12,10 +12,15 @@ import '../constants/app_categories.dart';
 /// YouTube Service providing live real YouTube content and real YouTube comments via YouTube's Innertube API.
 class YoutubeService {
   static YoutubeService? _instance;
-  final HttpClient _httpClient = HttpClient();
+  HttpClient? _httpClient;
 
   YoutubeService._() {
-    _httpClient.badCertificateCallback = (cert, host, port) => true;
+    if (!kIsWeb) {
+      try {
+        _httpClient = HttpClient();
+        _httpClient?.badCertificateCallback = (cert, host, port) => true;
+      } catch (_) {}
+    }
   }
 
   static YoutubeService get instance {
@@ -24,16 +29,49 @@ class YoutubeService {
   }
 
   void dispose() {
-    _httpClient.close(force: true);
+    if (!kIsWeb) {
+      _httpClient?.close(force: true);
+    }
   }
 
-  /// Search real live videos directly from YouTube's official Innertube API
+  /// Search real live videos directly from YouTube's official Innertube API (or youtube_explode on web)
   Future<List<VideoModel>> searchLiveYouTube(
     String query, {
     String categoryTag = AppCategories.categoryNews,
   }) async {
+    if (kIsWeb) {
+      try {
+        final yt = yt_exp.YoutubeExplode();
+        try {
+          final results = await yt.search.search(query).timeout(const Duration(seconds: 6));
+          final List<VideoModel> webList = [];
+          for (final item in results) {
+            webList.add(
+              VideoModel(
+                id: item.id.value,
+                title: item.title,
+                author: item.author,
+                channelId: item.channelId.value,
+                thumbnailUrl: item.thumbnails.highResUrl,
+                duration: item.duration ?? Duration.zero,
+                viewCount: item.engagement.viewCount,
+                uploadDate: item.uploadDateRaw ?? '',
+                categoryTag: categoryTag,
+                description: item.description,
+              ),
+            );
+          }
+          if (webList.isNotEmpty) return webList;
+        } finally {
+          yt.close();
+        }
+      } catch (_) {}
+      return getCuratedVideosByCategory(categoryTag);
+    }
+
     try {
-      final req = await _httpClient
+      if (_httpClient == null) return [];
+      final req = await _httpClient!
           .postUrl(
             Uri.parse(
               'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
@@ -157,9 +195,10 @@ class YoutubeService {
 
   /// Fetch 100% REAL YouTube comments directly from YouTube's Innertube API
   Future<List<CommentModel>> fetchRealYouTubeComments(String videoId) async {
+    if (kIsWeb || _httpClient == null) return [];
     try {
       // 1. Request watch next to obtain comments continuation token
-      final req1 = await _httpClient
+      final req1 = await _httpClient!
           .postUrl(
             Uri.parse(
               'https://www.youtube.com/youtubei/v1/next?prettyPrint=false',
@@ -218,7 +257,7 @@ class YoutubeService {
       if (continuationToken == null) return [];
 
       // 2. Request comments payload with continuation token
-      final req2 = await _httpClient
+      final req2 = await _httpClient!
           .postUrl(
             Uri.parse(
               'https://www.youtube.com/youtubei/v1/next?prettyPrint=false',
@@ -1081,8 +1120,11 @@ class YoutubeService {
       }
     }
 
+    if (kIsWeb || _httpClient == null) {
+      return getCuratedShorts();
+    }
     try {
-      final req = await _httpClient
+      final req = await _httpClient!
           .postUrl(
             Uri.parse(
               'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',

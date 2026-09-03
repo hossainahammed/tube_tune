@@ -29,21 +29,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // YouTube Red Play Icon Badge
-          Container(
-            width: 28,
-            height: 20,
-            decoration: BoxDecoration(
-              color: AppColors.youtubeRed,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 16,
-              ),
-            ),
+          // TubeTune Official Protected Shield App Icon (Exact YouTube aspect ratio)
+          Image.asset(
+            'assets/icons/app_icon.png',
+            width: 30,
+            height: 30,
+            fit: BoxFit.contain,
           ),
           const SizedBox(width: 5),
 

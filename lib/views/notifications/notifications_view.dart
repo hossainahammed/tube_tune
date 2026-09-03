@@ -8,6 +8,7 @@ import '../../models/video_model.dart';
 import '../player/player_view.dart';
 import '../search/search_view.dart';
 import '../shared/app_snackbar.dart';
+import '../shared/channel_avatar_widget.dart';
 
 /// Authentic YouTube Notifications Screen with All/Mentions filter, unread indicators, and 1-tap playback.
 class NotificationsView extends StatefulWidget {
@@ -263,41 +264,29 @@ class _NotificationsViewState extends State<NotificationsView> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Channel Avatar with optional unread dot
+            // Channel Avatar with optional unread dot (identical to YouTube)
             Stack(
               clipBehavior: Clip.none,
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.surfaceElevated,
-                  child: ClipOval(
-                    child: CachedNetworkImage(
-                      imageUrl: notif.channelAvatarUrl,
-                      width: 36,
-                      height: 36,
-                      fit: BoxFit.cover,
-                      errorWidget: (ctx, url, error) => Text(
-                        notif.channelName.isNotEmpty
-                            ? notif.channelName[0]
-                            : 'C',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
+                ChannelAvatarWidget(
+                  author: notif.channelName,
+                  avatarUrl: notif.channelAvatarUrl,
+                  radius: 20,
                 ),
                 if (!notif.isRead)
                   Positioned(
-                    top: -2,
-                    left: -2,
+                    top: -1,
+                    left: -1,
                     child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF3EA6FF),
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3EA6FF),
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.background,
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),

@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -213,6 +214,14 @@ class VideoCardWidget extends StatelessWidget {
                 ),
                 onTap: () async {
                   Navigator.pop(ctx);
+                  if (kIsWeb) {
+                    AppSnackBar.showInfo(
+                      context,
+                      'Offline video downloads are available on mobile app',
+                      icon: Icons.smartphone_rounded,
+                    );
+                    return;
+                  }
                   if (DownloadService.instance.isDownloaded(video.id)) {
                     AppSnackBar.showInfo(
                       context,

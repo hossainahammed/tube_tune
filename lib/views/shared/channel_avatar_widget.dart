@@ -24,18 +24,21 @@ class ChannelAvatarWidget extends StatelessWidget {
         (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://'));
 
     if (isValidUrl) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundColor: AppColors.surfaceElevated,
-        child: ClipOval(
-          child: CachedNetworkImage(
-            imageUrl: avatarUrl,
-            width: radius * 2,
-            height: radius * 2,
-            fit: BoxFit.cover,
-            placeholder: (context, url) => _buildBrandBadge(),
-            errorWidget: (context, url, error) => _buildBrandBadge(),
-          ),
+      return Container(
+        width: radius * 2,
+        height: radius * 2,
+        decoration: const BoxDecoration(
+          color: AppColors.surfaceElevated,
+          shape: BoxShape.circle,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: CachedNetworkImage(
+          imageUrl: avatarUrl,
+          width: radius * 2,
+          height: radius * 2,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => _buildBrandBadge(),
+          errorWidget: (context, url, error) => _buildBrandBadge(),
         ),
       );
     }

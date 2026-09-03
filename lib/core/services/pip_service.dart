@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Service interfacing with native Android Picture-in-Picture (PiP) and Background Play.
@@ -17,6 +18,7 @@ class PipService {
   bool get isInPip => _isPipActive;
 
   void init() {
+    if (kIsWeb) return;
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onPipModeChanged') {
         final bool inPip = call.arguments as bool? ?? false;
@@ -39,6 +41,7 @@ class PipService {
 
   /// Enable or disable background Picture-in-Picture mode
   Future<void> setPipEnabled(bool enabled) async {
+    if (kIsWeb) return;
     try {
       await _channel.invokeMethod('setPipEnabled', {'enabled': enabled});
     } catch (_) {}
@@ -46,6 +49,7 @@ class PipService {
 
   /// Inform native layer whether a video is actively playing
   Future<void> setVideoPlaying(bool playing) async {
+    if (kIsWeb) return;
     try {
       await _channel.invokeMethod('setVideoPlaying', {'playing': playing});
     } catch (_) {}
@@ -53,6 +57,7 @@ class PipService {
 
   /// Check if activity is currently in Picture-in-Picture mode
   Future<bool> isPipActive() async {
+    if (kIsWeb) return false;
     try {
       final bool? result = await _channel.invokeMethod<bool>('isPipActive');
       _isPipActive = result ?? false;
