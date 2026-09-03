@@ -1,17 +1,20 @@
 import 'package:flutter/foundation.dart';
+import 'package:video_player/video_player.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../core/services/background_audio_service.dart';
 import '../core/services/filter_service.dart';
 import '../core/services/pip_service.dart';
 import '../core/services/storage_service.dart';
 import '../core/services/youtube_service.dart';
 import '../models/comment_model.dart';
+import '../models/subtitle_model.dart';
 import '../models/user_model.dart';
 import '../models/video_model.dart';
 import 'settings_viewmodel.dart';
 
 enum CommentSortOrder { top, newest }
 
-/// ViewModel managing video playback, related videos, comments, and watch history.
+/// ViewModel managing video playback, related videos, comments, subtitles, and watch history.
 class PlayerViewModel with ChangeNotifier {
   final StorageService storage;
   final YoutubeService youtubeService;
@@ -24,6 +27,19 @@ class PlayerViewModel with ChangeNotifier {
   List<CommentModel> _comments = [];
   bool _isLoadingDetails = false;
   CommentSortOrder _commentSortOrder = CommentSortOrder.top;
+
+  // Video playback controller state
+  VideoPlayerController? _videoController;
+  YoutubePlayerController? _iframeController;
+  bool _isNativeVideoReady = false;
+  bool _isLoadingStream = false;
+  bool _isAutoplayEnabled = true;
+  double _playbackSpeed = 1.0;
+  String _selectedQuality = 'Auto (720p)';
+
+  // Real YouTube subtitles state
+  List<SubtitleModel> _subtitles = [];
+  bool _showCaptions = true;
 
   final Set<String> _likedVideoIds = {};
   List<VideoModel> _watchHistory = [];
@@ -47,11 +63,32 @@ class PlayerViewModel with ChangeNotifier {
   bool get isAdBlocked => settingsViewModel.enableAdBlock;
   CommentSortOrder get commentSortOrder => _commentSortOrder;
 
+  VideoPlayerController? get videoController => _videoController;
+  YoutubePlayerController? get iframeController => _iframeController;
+  bool get isNativeVideoReady => _isNativeVideoReady;
+  bool get isLoadingStream => _isLoadingStream;
+  bool get isAutoplayEnabled => _isAutoplayEnabled;
+  double get playbackSpeed => _playbackSpeed;
+  String get selectedQuality => _selectedQuality;
+  List<SubtitleModel> get subtitles => List.unmodifiable(_subtitles);
+  bool get showCaptions => _showCaptions;
+
   List<VideoModel> get watchHistory => List.unmodifiable(_watchHistory);
   List<VideoModel> get watchLater => List.unmodifiable(_watchLater);
   Set<String> get likedVideoIds => Set.unmodifiable(_likedVideoIds);
   bool isLiked(String id) => _likedVideoIds.contains(id);
   bool isWatchLater(String id) => _watchLater.any((v) => v.id == id);
+
+  static String cleanYoutubeId(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.contains('v=')) {
+      return trimmed.split('v=')[1].split('&')[0];
+    }
+    if (trimmed.length > 11) {
+      return trimmed.substring(0, 11);
+    }
+    return trimmed;
+  }
 
   void _loadSavedData() {
     _watchHistory = storage.getWatchHistory();
@@ -60,10 +97,28 @@ class PlayerViewModel with ChangeNotifier {
   }
 
   Future<void> playVideo(VideoModel video) async {
+    // If exact same video is already playing, keep playing uninterrupted
+    if (_currentVideo?.id == video.id && _videoController != null && _videoController!.value.isInitialized) {
+      _isMiniPlayerVisible = true;
+      if (!_videoController!.value.isPlaying) {
+        await _videoController!.play();
+        _isPlaying = true;
+        PipService.instance.setVideoPlaying(true);
+      }
+      notifyListeners();
+      return;
+    }
+
+    // Dispose old controller before switching to new video
+    await _disposePlayerControllers();
+
     _currentVideo = video;
     _isPlaying = true;
     _isMiniPlayerVisible = true;
+    _isLoadingStream = true;
+    _isNativeVideoReady = false;
     _isLoadingDetails = true;
+    _subtitles = [];
     notifyListeners();
 
     // Add to watch history
@@ -74,6 +129,12 @@ class PlayerViewModel with ChangeNotifier {
       BackgroundAudioService.instance.prepareAudio(video);
       PipService.instance.setVideoPlaying(true);
     }
+
+    // Load real subtitles from YouTube in parallel
+    _loadSubtitles(video.id);
+
+    // Initialize native video player stream
+    await _initVideoPlayer(video);
 
     // Fetch comments & filtered related videos
     try {
@@ -101,6 +162,224 @@ class PlayerViewModel with ChangeNotifier {
       _isLoadingDetails = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _initVideoPlayer(VideoModel video) async {
+    final cleanId = cleanYoutubeId(video.id);
+
+    try {
+      final streamUrl = await youtubeService.getDirectStreamUrl(
+        cleanId,
+        isLive: video.isLive,
+      );
+
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        final vc = VideoPlayerController.networkUrl(
+          Uri.parse(streamUrl),
+          httpHeaders: {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+          },
+        );
+
+        await vc.initialize();
+        if (_currentVideo?.id != video.id) {
+          vc.dispose();
+          return;
+        }
+
+        vc.addListener(_onVideoControllerUpdate);
+        await vc.play();
+        await vc.setPlaybackSpeed(_playbackSpeed);
+
+        _videoController = vc;
+        _isNativeVideoReady = true;
+        _isLoadingStream = false;
+        _isPlaying = true;
+        PipService.instance.setVideoPlaying(true);
+        notifyListeners();
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback to iframe if direct stream is not available
+    _initIframeFallback(cleanId);
+  }
+
+  void _initIframeFallback(String cleanId) {
+    try {
+      _iframeController = YoutubePlayerController.fromVideoId(
+        videoId: cleanId,
+        autoPlay: true,
+        params: const YoutubePlayerParams(
+          showControls: true,
+          showFullscreenButton: true,
+          enableCaption: true,
+          playsInline: true,
+          strictRelatedVideos: false,
+        ),
+      );
+    } catch (_) {}
+    _isNativeVideoReady = false;
+    _isLoadingStream = false;
+    notifyListeners();
+  }
+
+  void _onVideoControllerUpdate() {
+    if (_videoController == null || !_videoController!.value.isInitialized) return;
+
+    final isControllerPlaying = _videoController!.value.isPlaying;
+    if (_isPlaying != isControllerPlaying) {
+      _isPlaying = isControllerPlaying;
+      PipService.instance.setVideoPlaying(_isPlaying);
+      notifyListeners();
+    }
+
+    // Autoplay next video when current non-live video reaches the end
+    if (_isAutoplayEnabled &&
+        !(_currentVideo?.isLive ?? false) &&
+        _videoController!.value.duration > const Duration(seconds: 10) &&
+        _videoController!.value.position >= _videoController!.value.duration - const Duration(milliseconds: 600) &&
+        !_videoController!.value.isBuffering) {
+      final next = getNextVideo();
+      if (next != null) {
+        playVideo(next);
+      }
+    }
+  }
+
+  Future<void> _loadSubtitles(String rawVideoId) async {
+    try {
+      final cleanId = cleanYoutubeId(rawVideoId);
+      final subs = await youtubeService.getSubtitles(cleanId);
+      _subtitles = subs;
+      notifyListeners();
+    } catch (_) {
+      _subtitles = [];
+    }
+  }
+
+  /// Get caption for current playback position. Returns empty string if no caption is spoken.
+  String getCaptionForPosition(Duration pos) {
+    if (!_showCaptions || _subtitles.isEmpty) return '';
+    for (final s in _subtitles) {
+      if (pos >= s.start && pos <= s.end) {
+        return s.text;
+      }
+    }
+    return '';
+  }
+
+  void toggleCaptions() {
+    _showCaptions = !_showCaptions;
+    notifyListeners();
+  }
+
+  void setPlaybackSpeed(double speed) {
+    _playbackSpeed = speed;
+    _videoController?.setPlaybackSpeed(speed);
+    notifyListeners();
+  }
+
+  void setQuality(String quality) {
+    _selectedQuality = quality;
+    notifyListeners();
+  }
+
+  void toggleAutoplay() {
+    _isAutoplayEnabled = !_isAutoplayEnabled;
+    notifyListeners();
+  }
+
+  void seekTo(Duration position) {
+    _videoController?.seekTo(position);
+    _iframeController?.seekTo(seconds: position.inSeconds.toDouble());
+  }
+
+  void togglePlayPause() {
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      if (_videoController!.value.isPlaying) {
+        _videoController!.pause();
+        _isPlaying = false;
+        PipService.instance.setVideoPlaying(false);
+      } else {
+        _videoController!.play();
+        _isPlaying = true;
+        PipService.instance.setVideoPlaying(true);
+      }
+      notifyListeners();
+    } else if (_iframeController != null) {
+      if (_isPlaying) {
+        _iframeController!.pauseVideo();
+        _isPlaying = false;
+      } else {
+        _iframeController!.playVideo();
+        _isPlaying = true;
+      }
+      notifyListeners();
+    }
+  }
+
+  void pauseVideo() {
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      if (_videoController!.value.isPlaying) {
+        _videoController!.pause();
+        _isPlaying = false;
+        PipService.instance.setVideoPlaying(false);
+        notifyListeners();
+      }
+    } else if (_iframeController != null && _isPlaying) {
+      _iframeController!.pauseVideo();
+      _isPlaying = false;
+      notifyListeners();
+    }
+    BackgroundAudioService.instance.pause();
+  }
+
+  void resumeVideo() {
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      if (!_videoController!.value.isPlaying) {
+        _videoController!.play();
+        _isPlaying = true;
+        PipService.instance.setVideoPlaying(true);
+        notifyListeners();
+      }
+    } else if (_iframeController != null && !_isPlaying) {
+      _iframeController!.playVideo();
+      _isPlaying = true;
+      notifyListeners();
+    }
+  }
+
+  void closeMiniPlayer() {
+    _disposePlayerControllers();
+    _isMiniPlayerVisible = false;
+    _isPlaying = false;
+    _currentVideo = null;
+    BackgroundAudioService.instance.stop();
+    PipService.instance.setVideoPlaying(false);
+    notifyListeners();
+  }
+
+  Future<void> _disposePlayerControllers() async {
+    if (_videoController != null) {
+      _videoController!.removeListener(_onVideoControllerUpdate);
+      try {
+        await _videoController!.pause();
+      } catch (_) {}
+      try {
+        await _videoController!.dispose();
+      } catch (_) {}
+      _videoController = null;
+    }
+    if (_iframeController != null) {
+      try {
+        _iframeController!.close();
+      } catch (_) {}
+      _iframeController = null;
+    }
+    _isNativeVideoReady = false;
+    _isLoadingStream = false;
   }
 
   /// Change comment sort order (Top comments vs Newest first)
@@ -167,30 +446,6 @@ class PlayerViewModel with ChangeNotifier {
     return '$count';
   }
 
-  void togglePlayPause() {
-    _isPlaying = !_isPlaying;
-    PipService.instance.setVideoPlaying(_isPlaying);
-    notifyListeners();
-  }
-
-  void pauseVideo() {
-    if (_isPlaying) {
-      _isPlaying = false;
-      BackgroundAudioService.instance.pause();
-      PipService.instance.setVideoPlaying(false);
-      notifyListeners();
-    }
-  }
-
-  void closeMiniPlayer() {
-    _isMiniPlayerVisible = false;
-    _isPlaying = false;
-    _currentVideo = null;
-    BackgroundAudioService.instance.stop();
-    PipService.instance.setVideoPlaying(false);
-    notifyListeners();
-  }
-
   void toggleLike(String videoId) {
     if (_likedVideoIds.contains(videoId)) {
       _likedVideoIds.remove(videoId);
@@ -236,5 +491,11 @@ class PlayerViewModel with ChangeNotifier {
       return available.first;
     }
     return null;
+  }
+
+  @override
+  void dispose() {
+    _disposePlayerControllers();
+    super.dispose();
   }
 }

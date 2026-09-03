@@ -5,6 +5,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_exp;
 
 import '../../models/category_model.dart';
 import '../../models/comment_model.dart';
+import '../../models/subtitle_model.dart';
 import '../../models/video_model.dart';
 import '../constants/app_categories.dart';
 
@@ -948,6 +949,55 @@ class YoutubeService {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// Fetch real closed captions / subtitles directly from YouTube
+  Future<List<SubtitleModel>> getSubtitles(String videoId) async {
+    try {
+      final cleanId = videoId.trim();
+      final id = cleanId.contains('v=')
+          ? cleanId.split('v=')[1].split('&')[0]
+          : (cleanId.length > 11 ? cleanId.substring(0, 11) : cleanId);
+
+      final yt = yt_exp.YoutubeExplode();
+      try {
+        final manifest = await yt.videos.closedCaptions
+            .getManifest(id)
+            .timeout(const Duration(seconds: 8));
+
+        if (manifest.tracks.isEmpty) return [];
+
+        // Prefer Bangla ('bn'), then English ('en'), then first available track
+        yt_exp.ClosedCaptionTrackInfo? selectedTrack;
+        for (final t in manifest.tracks) {
+          if (t.language.code.toLowerCase() == 'bn') {
+            selectedTrack = t;
+            break;
+          }
+        }
+        selectedTrack ??= manifest.tracks.firstWhere(
+          (t) => t.language.code.toLowerCase().startsWith('en'),
+          orElse: () => manifest.tracks.first,
+        );
+
+        final track = await yt.videos.closedCaptions
+            .get(selectedTrack)
+            .timeout(const Duration(seconds: 8));
+
+        return track.captions
+            .map((c) => SubtitleModel(
+                  start: c.offset,
+                  end: c.offset + c.duration,
+                  text: c.text.trim(),
+                ))
+            .where((s) => s.text.isNotEmpty)
+            .toList();
+      } finally {
+        yt.close();
+      }
+    } catch (_) {
+      return [];
+    }
   }
 
   /// Get direct high-bitrate audio stream URL for smooth background audio playback (both on-demand & live streams)

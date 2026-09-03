@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
 import '../core/constants/app_colors.dart';
 import '../core/services/background_audio_service.dart';
@@ -178,13 +179,37 @@ class _MainNavigationViewState extends State<MainNavigationView> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: video.thumbnailUrl,
+                child: SizedBox(
                   width: 70,
                   height: 44,
-                  fit: BoxFit.cover,
-                  errorWidget: (context, url, error) =>
-                      Container(color: Colors.black),
+                  child: (playerVm.videoController != null &&
+                          playerVm.videoController!.value.isInitialized)
+                      ? AspectRatio(
+                          aspectRatio: playerVm.videoController!.value.aspectRatio > 0
+                              ? playerVm.videoController!.value.aspectRatio
+                              : 16 / 9,
+                          child: FittedBox(
+                            fit: BoxFit.cover,
+                            clipBehavior: Clip.hardEdge,
+                            child: SizedBox(
+                              width: playerVm.videoController!.value.size.width > 0
+                                  ? playerVm.videoController!.value.size.width
+                                  : 16,
+                              height: playerVm.videoController!.value.size.height > 0
+                                  ? playerVm.videoController!.value.size.height
+                                  : 9,
+                              child: VideoPlayer(playerVm.videoController!),
+                            ),
+                          ),
+                        )
+                      : CachedNetworkImage(
+                          imageUrl: video.thumbnailUrl,
+                          width: 70,
+                          height: 44,
+                          fit: BoxFit.cover,
+                          errorWidget: (context, url, error) =>
+                              Container(color: Colors.black),
+                        ),
                 ),
               ),
               const SizedBox(width: 10),

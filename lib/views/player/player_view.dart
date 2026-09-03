@@ -8,7 +8,6 @@ import 'package:video_player/video_player.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/pip_service.dart';
-import '../../core/services/youtube_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -32,21 +31,10 @@ class PlayerView extends StatefulWidget {
 }
 
 class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
-  VideoPlayerController? _videoController;
-  YoutubePlayerController? _iframeController;
-  bool _isNativeVideoReady = false;
-  bool _isLoadingStream = true;
   bool _showControls = true;
   Timer? _hideControlsTimer;
-  bool _isAutoplayEnabled = true;
-  bool _showCaptions = true;
-  double _playbackSpeed = 1.0;
+  Timer? _positionUpdateTimer;
   bool _isControlsLocked = false;
-  String _selectedQuality = 'Auto (720p)';
-  Timer? _stallWatchdogTimer;
-  Duration _lastStallPosition = Duration.zero;
-  int _stallSecondsCount = 0;
-
   bool _isDescriptionExpanded = false;
   bool _isSubscribed = false;
   bool _isDisliked = false;
@@ -73,20 +61,13 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     return '$minutes:$seconds';
   }
 
-  String _getCaptionForPosition(Duration pos) {
-    final s = pos.inSeconds;
-    if (s < 10) return 'স্বাগতম, ভিডিওটি উপভোগ করুন';
-    if (s < 25) return 'পারতাছি না। খাওয়া সব শেষ হয়ে যাইতেছে';
-    if (s < 45) return 'বিরিয়ানি শেষ হয়ে যাইতেছে। একটু তাড়াতাড়ি চলেন';
-    if (s < 70) return 'ওস্তাদ, এমনে না ডাকলে তো কাস্টমার আইবো না।';
-    if (s < 100) return 'এমনে ডাইকা যে দুই চার পাঁচটা কাস্টমার পাই';
-    return 'দাওয়াত রইলো বিশেষ নাটক পর্ব';
-  }
-
   void _startHideControlsTimer() {
     _hideControlsTimer?.cancel();
     _hideControlsTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted && _showControls && (_videoController?.value.isPlaying ?? false)) {
+      if (!mounted) return;
+      final playerVm = context.read<PlayerViewModel>();
+      final isPlaying = playerVm.videoController?.value.isPlaying ?? false;
+      if (_showControls && isPlaying) {
         setState(() {
           _showControls = false;
         });
@@ -95,6 +76,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   }
 
   void _showSettingsBottomSheet(BuildContext context) {
+    final playerVm = context.read<PlayerViewModel>();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF212121),
@@ -122,7 +104,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_selectedQuality, style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    Text(playerVm.selectedQuality, style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
                     const SizedBox(width: 4),
                     const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
                   ],
@@ -138,7 +120,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('${_playbackSpeed == 1.0 ? "1" : _playbackSpeed}x', style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    Text('${playerVm.playbackSpeed == 1.0 ? "1" : playerVm.playbackSpeed}x', style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
                     const SizedBox(width: 4),
                     const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
                   ],
@@ -154,15 +136,18 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(_showCaptions ? 'Bangla (auto-generated)' : 'Off', style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+                    Text(
+                      playerVm.showCaptions
+                          ? (playerVm.subtitles.isNotEmpty ? 'Available' : 'On')
+                          : 'Off',
+                      style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
+                    ),
                     const SizedBox(width: 4),
                     const Icon(Icons.chevron_right, color: Color(0xFFAAAAAA), size: 18),
                   ],
                 ),
                 onTap: () {
-                  setState(() {
-                    _showCaptions = !_showCaptions;
-                  });
+                  playerVm.toggleCaptions();
                   Navigator.pop(ctx);
                 },
               ),
@@ -191,6 +176,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   }
 
   void _showSpeedPicker(BuildContext context) {
+    final playerVm = context.read<PlayerViewModel>();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF212121),
@@ -209,12 +195,9 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
               ...speeds.map((s) => ListTile(
                 dense: true,
                 title: Text(s == 1.0 ? 'Normal' : '${s}x', style: const TextStyle(color: Colors.white)),
-                trailing: _playbackSpeed == s ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
+                trailing: playerVm.playbackSpeed == s ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
                 onTap: () {
-                  setState(() {
-                    _playbackSpeed = s;
-                    _videoController?.setPlaybackSpeed(s);
-                  });
+                  playerVm.setPlaybackSpeed(s);
                   Navigator.pop(ctx);
                 },
               )),
@@ -227,6 +210,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   }
 
   void _showQualityPicker(BuildContext context) {
+    final playerVm = context.read<PlayerViewModel>();
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF212121),
@@ -245,11 +229,9 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
               ...qualities.map((q) => ListTile(
                 dense: true,
                 title: Text(q, style: const TextStyle(color: Colors.white)),
-                trailing: _selectedQuality == q ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
+                trailing: playerVm.selectedQuality == q ? const Icon(Icons.check, color: AppColors.youtubeRed) : null,
                 onTap: () {
-                  setState(() {
-                    _selectedQuality = q;
-                  });
+                  playerVm.setQuality(q);
                   Navigator.pop(ctx);
                 },
               )),
@@ -265,7 +247,28 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initPlayer();
+
+    // Smooth periodic UI refresh for progress indicator and real subtitles
+    _positionUpdateTimer = Timer.periodic(const Duration(milliseconds: 300), (_) {
+      if (mounted) {
+        final playerVm = context.read<PlayerViewModel>();
+        if (playerVm.videoController?.value.isPlaying ?? false) {
+          setState(() {});
+        }
+      }
+    });
+
+    // Ensure player viewmodel initializes video state and loads comments/subtitles
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final playerVm = context.read<PlayerViewModel>();
+        if (playerVm.currentVideo?.id != widget.video.id ||
+            playerVm.videoController == null ||
+            !playerVm.videoController!.value.isInitialized) {
+          playerVm.playVideo(widget.video);
+        }
+      }
+    });
 
     // Listen to native Picture-in-Picture mode transitions
     PipService.instance.init();
@@ -274,23 +277,15 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       setState(() {
         _isInPip = inPip;
       });
-      if (inPip && _videoController != null && _videoController!.value.isInitialized) {
-        _videoController?.play();
-        PipService.instance.setVideoPlaying(true);
+      if (inPip) {
+        context.read<PlayerViewModel>().resumeVideo();
       }
     };
 
-    // Native PiP interactive media buttons (Previous, Play/Pause, Next) matching official YouTube PiP
+    // Native PiP interactive media buttons (Previous, Play/Pause, Next)
     PipService.instance.onPipPlayPause = (isPlaying) {
-      if (!mounted || _videoController == null || !_videoController!.value.isInitialized) return;
-      if (_videoController!.value.isPlaying) {
-        _videoController!.pause();
-        PipService.instance.setVideoPlaying(false);
-      } else {
-        _videoController!.play();
-        PipService.instance.setVideoPlaying(true);
-      }
-      setState(() {});
+      if (!mounted) return;
+      context.read<PlayerViewModel>().togglePlayPause();
     };
 
     PipService.instance.onPipNext = () {
@@ -304,22 +299,12 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     // Screen Off / Lock -> Keep playing audio continuously via native WakeLock!
     PipService.instance.onScreenOff = () {
       if (!mounted) return;
-      if (_videoController != null && _videoController!.value.isInitialized) {
-        _videoController!.play();
-        PipService.instance.setVideoPlaying(true);
-      }
+      context.read<PlayerViewModel>().resumeVideo();
     };
 
     PipService.instance.onScreenOn = () {
       if (!mounted) return;
     };
-
-    // Ensure player viewmodel initializes video state and loads realistic comments
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<PlayerViewModel>().playVideo(widget.video);
-      }
-    });
   }
 
   void _playNextVideo() {
@@ -327,12 +312,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     final playerVm = context.read<PlayerViewModel>();
     final nextVideo = playerVm.getNextVideo();
     if (nextVideo != null) {
-      _videoController?.pause();
-      _videoController?.dispose();
-      _videoController = null;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => PlayerView(video: nextVideo)),
-      );
+      playerVm.playVideo(nextVideo);
     } else {
       AppSnackBar.showInfo(
         context,
@@ -343,172 +323,24 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   }
 
   void _playPrevOrRestart() {
-    if (!mounted || _videoController == null || !_videoController!.value.isInitialized) return;
-    _videoController!.seekTo(Duration.zero);
-    _startHideControlsTimer();
-  }
-
-  Future<void> _initPlayer() async {
-    setState(() => _isLoadingStream = true);
-    final cleanId = cleanYoutubeId(widget.video.id);
-
-    try {
-      final streamUrl = await YoutubeService.instance.getDirectStreamUrl(
-        cleanId,
-        isLive: widget.video.isLive,
-      );
-
-      if (streamUrl != null && streamUrl.isNotEmpty) {
-        final vc = VideoPlayerController.networkUrl(
-          Uri.parse(streamUrl),
-          httpHeaders: {
-            'User-Agent':
-                'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
-          },
-        );
-
-        await vc.initialize();
-        if (!mounted) {
-          vc.dispose();
-          return;
-        }
-
-        vc.addListener(() {
-          if (mounted) {
-            setState(() {});
-            // If direct stream encountered an error or network drop, recover instantly with official player
-            if (vc.value.hasError) {
-              _switchToIframePlayer(cleanId);
-              return;
-            }
-
-            // Autoplay next video when current non-live video genuinely reaches the end
-            if (_isAutoplayEnabled &&
-                vc.value.isInitialized &&
-                !widget.video.isLive &&
-                vc.value.duration > const Duration(seconds: 10) &&
-                vc.value.position >= vc.value.duration - const Duration(milliseconds: 500) &&
-                !vc.value.isBuffering) {
-              _playNextVideo();
-            }
-          }
-        });
-
-        await vc.play();
-        PipService.instance.setVideoPlaying(true);
-
-        if (mounted) {
-          setState(() {
-            _videoController = vc;
-            _isNativeVideoReady = true;
-            _isLoadingStream = false;
-            _showControls = true;
-          });
-          _startHideControlsTimer();
-          _startStallWatchdog(cleanId);
-          return;
-        }
-      }
-    } catch (_) {}
-
-    // If direct stream is unavailable, fallback gracefully to iframe
-    if (mounted) {
-      _initIframeFallback(cleanId);
-    }
-  }
-
-  void _startStallWatchdog(String cleanId) {
-    _stallWatchdogTimer?.cancel();
-    _stallSecondsCount = 0;
-    _lastStallPosition = Duration.zero;
-
-    _stallWatchdogTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted || _videoController == null || !_isNativeVideoReady) {
-        timer.cancel();
-        return;
-      }
-
-      final vc = _videoController!;
-      if (vc.value.hasError) {
-        timer.cancel();
-        _switchToIframePlayer(cleanId);
-        return;
-      }
-
-      if (vc.value.isPlaying && !widget.video.isLive) {
-        final currentPos = vc.value.position;
-        final totalDuration = vc.value.duration;
-
-        if (totalDuration > Duration.zero &&
-            currentPos >= totalDuration - const Duration(seconds: 1)) {
-          return;
-        }
-
-        if (currentPos == _lastStallPosition) {
-          _stallSecondsCount++;
-          // If playback hasn't progressed for 4 seconds (YouTube server-side throttle/stall):
-          if (_stallSecondsCount >= 4) {
-            timer.cancel();
-            _switchToIframePlayer(cleanId);
-          }
-        } else {
-          _stallSecondsCount = 0;
-          _lastStallPosition = currentPos;
-        }
-      }
-    });
-  }
-
-  void _switchToIframePlayer(String cleanId) {
     if (!mounted) return;
-    final savedPos = _videoController?.value.position ?? Duration.zero;
-    _stallWatchdogTimer?.cancel();
-    _videoController?.pause();
-    _videoController?.dispose();
-    _videoController = null;
-    setState(() {
-      _isNativeVideoReady = false;
-      _isLoadingStream = false;
-    });
-    _initIframeFallback(cleanId, startAt: savedPos);
-  }
-
-  void _initIframeFallback(String cleanId, {Duration startAt = Duration.zero}) {
-    _iframeController = YoutubePlayerController.fromVideoId(
-      videoId: cleanId,
-      autoPlay: true,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: true,
-        enableCaption: true,
-        playsInline: true,
-        strictRelatedVideos: false,
-      ),
-    );
-    if (startAt > Duration.zero) {
-      _iframeController?.seekTo(seconds: startAt.inSeconds.toDouble());
-    }
-    setState(() {
-      _isLoadingStream = false;
-    });
+    context.read<PlayerViewModel>().seekTo(Duration.zero);
+    _startHideControlsTimer();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _hideControlsTimer?.cancel();
-    _stallWatchdogTimer?.cancel();
+    _positionUpdateTimer?.cancel();
     PipService.instance.onPipModeChanged = null;
     PipService.instance.onScreenOff = null;
     PipService.instance.onScreenOn = null;
     PipService.instance.onPipPlayPause = null;
     PipService.instance.onPipNext = null;
     PipService.instance.onPipPrev = null;
-    PipService.instance.setVideoPlaying(false);
-    _videoController?.dispose();
-    try {
-      _iframeController?.close();
-    } catch (_) {}
+    // NOTE: We deliberately do NOT dispose playerVm.videoController here!
+    // This allows the video and audio to continue playing seamlessly in the Mini-Player!
     _commentInputController.dispose();
     super.dispose();
   }
@@ -520,25 +352,20 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     final settingsVm = context.read<SettingsViewModel>();
     if (!settingsVm.enableBackgroundPlay) return;
 
+    final playerVm = context.read<PlayerViewModel>();
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
-      // Device locked or screen off, or in background: keep playing audio continuously!
-      if (_videoController != null && _videoController!.value.isInitialized) {
-        _videoController!.play();
-        PipService.instance.setVideoPlaying(true);
-      }
+      playerVm.resumeVideo();
     } else if (state == AppLifecycleState.resumed) {
-      if (_videoController != null && _videoController!.value.isInitialized) {
-        _videoController!.play();
-        PipService.instance.setVideoPlaying(true);
-      }
+      playerVm.resumeVideo();
     }
   }
 
   Widget _buildVideoPlayerSurface(PlayerViewModel playerVm) {
-    if (_isNativeVideoReady && _videoController != null) {
-      final isPlaying = _videoController!.value.isPlaying;
-      final position = _videoController!.value.position;
-      final duration = _videoController!.value.duration;
+    final vc = playerVm.videoController;
+    if (playerVm.isNativeVideoReady && vc != null && vc.value.isInitialized) {
+      final isPlaying = vc.value.isPlaying;
+      final position = vc.value.position;
+      final duration = vc.value.duration;
 
       return GestureDetector(
         onTap: () {
@@ -561,8 +388,8 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
             // 1. Native Video Player
             Center(
               child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: VideoPlayer(_videoController!),
+                aspectRatio: vc.value.aspectRatio > 0 ? vc.value.aspectRatio : 16 / 9,
+                child: VideoPlayer(vc),
               ),
             ),
 
@@ -592,27 +419,25 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                     // Autoplay switch pill
                     GestureDetector(
                       onTap: () {
-                        setState(() {
-                          _isAutoplayEnabled = !_isAutoplayEnabled;
-                        });
+                        playerVm.toggleAutoplay();
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _isAutoplayEnabled ? Colors.white : Colors.black54,
+                          color: playerVm.isAutoplayEnabled ? Colors.white : Colors.black54,
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.play_arrow, size: 13, color: _isAutoplayEnabled ? Colors.black : Colors.white70),
+                            Icon(Icons.play_arrow, size: 13, color: playerVm.isAutoplayEnabled ? Colors.black : Colors.white70),
                             const SizedBox(width: 3),
                             Container(
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _isAutoplayEnabled ? Colors.black : Colors.white70,
+                                color: playerVm.isAutoplayEnabled ? AppColors.youtubeRed : Colors.white60,
                               ),
                             ),
                           ],
@@ -640,21 +465,19 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                     // Captions toggle button
                     GestureDetector(
                       onTap: () {
-                        setState(() {
-                          _showCaptions = !_showCaptions;
-                        });
+                        playerVm.toggleCaptions();
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          border: Border.all(color: _showCaptions ? Colors.white : Colors.white60, width: 1.2),
+                          border: Border.all(color: playerVm.showCaptions ? Colors.white : Colors.white60, width: 1.2),
                           borderRadius: BorderRadius.circular(3),
-                          color: _showCaptions ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
+                          color: playerVm.showCaptions ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
                         ),
                         child: Text(
                           'CC',
                           style: TextStyle(
-                            color: _showCaptions ? Colors.white : Colors.white60,
+                            color: playerVm.showCaptions ? Colors.white : Colors.white60,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -698,14 +521,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                         color: Colors.white,
                       ),
                       onPressed: () {
-                        if (isPlaying) {
-                          _videoController!.pause();
-                          PipService.instance.setVideoPlaying(false);
-                        } else {
-                          _videoController!.play();
-                          PipService.instance.setVideoPlaying(true);
-                        }
-                        setState(() {});
+                        playerVm.togglePlayPause();
                         _startHideControlsTimer();
                       },
                     ),
@@ -759,7 +575,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 right: 0,
                 bottom: 0,
                 child: VideoProgressIndicator(
-                  _videoController!,
+                  vc,
                   allowScrubbing: true,
                   padding: EdgeInsets.zero,
                   colors: const VideoProgressColors(
@@ -771,33 +587,42 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
               ),
             ],
 
-            // Captions Bar overlay on video (Screenshot 1)
-            if (_showCaptions)
-              Positioned(
-                bottom: _showControls ? 36 : 14,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    _getCaptionForPosition(position),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+            // Real YouTube Subtitles Bar overlay on video
+            if (playerVm.showCaptions) ...[
+              Builder(
+                builder: (context) {
+                  final captionText = playerVm.getCaptionForPosition(position);
+                  if (captionText.isEmpty) return const SizedBox.shrink();
+                  return Positioned(
+                    bottom: _showControls ? 36 : 14,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.82),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        captionText,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
+            ],
           ],
         ),
       );
     }
 
     // Loading / Buffer indicator with thumbnail
-    if (_isLoadingStream) {
+    if (playerVm.isLoadingStream) {
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -815,11 +640,12 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     }
 
     // Graceful fallback to Iframe if direct stream was unavailable
+    final iframe = playerVm.iframeController;
     return Stack(
       children: [
-        if (_iframeController != null)
+        if (iframe != null)
           YoutubePlayer(
-            controller: _iframeController!,
+            controller: iframe,
             aspectRatio: 16 / 9,
           ),
         Positioned(
@@ -841,24 +667,27 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final playerVm = context.watch<PlayerViewModel>();
+
     // If in native Picture-in-Picture mode, render ONLY the full-bleed video player
     if (_isInPip) {
+      final vc = playerVm.videoController;
+      final iframe = playerVm.iframeController;
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
           child: AspectRatio(
             aspectRatio: 16 / 9,
-            child: _isNativeVideoReady && _videoController != null
-                ? VideoPlayer(_videoController!)
-                : (_iframeController != null
-                    ? YoutubePlayer(controller: _iframeController!, aspectRatio: 16 / 9)
+            child: playerVm.isNativeVideoReady && vc != null
+                ? VideoPlayer(vc)
+                : (iframe != null
+                    ? YoutubePlayer(controller: iframe, aspectRatio: 16 / 9)
                     : const Center(child: CircularProgressIndicator(color: AppColors.youtubeRed))),
           ),
         ),
       );
     }
 
-    final playerVm = context.watch<PlayerViewModel>();
     final authVm = context.watch<AuthViewModel>();
     final isLiked = playerVm.isLiked(widget.video.id);
     final displayLikeCount = playerVm.getDisplayLikeCount(widget.video);
