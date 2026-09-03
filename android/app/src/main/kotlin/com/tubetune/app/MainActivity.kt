@@ -1,4 +1,4 @@
-package com.example.tube_tune
+package com.tubetune.app
 
 import android.app.KeyguardManager
 import android.app.PendingIntent
@@ -18,16 +18,16 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : AudioServiceActivity() {
-    private val CHANNEL = "com.example.tube_tune/pip"
+    private val CHANNEL = "com.tubetune.app/pip"
     private var methodChannel: MethodChannel? = null
     private var isPipEnabled = true
     private var isVideoPlaying = false
     private var wakeLock: PowerManager.WakeLock? = null
 
     companion object {
-        const val ACTION_PIP_PLAY_PAUSE = "com.example.tube_tune.PIP_PLAY_PAUSE"
-        const val ACTION_PIP_NEXT = "com.example.tube_tune.PIP_NEXT"
-        const val ACTION_PIP_PREV = "com.example.tube_tune.PIP_PREV"
+        const val ACTION_PIP_PLAY_PAUSE = "com.tubetune.app.PIP_PLAY_PAUSE"
+        const val ACTION_PIP_NEXT = "com.tubetune.app.PIP_NEXT"
+        const val ACTION_PIP_PREV = "com.tubetune.app.PIP_PREV"
         const val REQ_PLAY_PAUSE = 101
         const val REQ_NEXT = 102
         const val REQ_PREV = 103

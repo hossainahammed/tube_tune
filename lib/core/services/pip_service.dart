@@ -5,7 +5,7 @@ class PipService {
   PipService._();
   static final PipService instance = PipService._();
 
-  static const MethodChannel _channel = MethodChannel('com.example.tube_tune/pip');
+  static const MethodChannel _channel = MethodChannel('com.tubetune.app/pip');
 
   Function(bool isInPip)? onPipModeChanged;
   void Function()? onScreenOff;

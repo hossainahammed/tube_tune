@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "718728761301",
+    "project_id": "tubetune-f2323",
+    "storage_bucket": "tubetune-f2323.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:718728761301:android:fde85fe66dccec3af8775c",
+        "android_client_info": {
+          "package_name": "com.tubetune.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "718728761301-6ulf3rvauhqcqlp379ok5ri8dgak9lg4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tubetune.app",
+            "certificate_hash": "653d0fa1c632517bd400ac5be65d10046042d01c"
+          }
+        },
+        {
+          "client_id": "718728761301-qklk804a29elej8sdsur5qkktkkarp2m.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCsONCVAAoPKtT8sdHgS_193XnJB3ZIYE8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "718728761301-qklk804a29elej8sdsur5qkktkkarp2m.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

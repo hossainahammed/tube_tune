@@ -3,12 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/cast_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
+import '../notifications/notifications_view.dart';
 import '../player/player_view.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
+import '../shared/cast_bottom_sheet.dart';
 import '../shared/google_signin_dialog.dart';
 import '../shared/timer_status_bar.dart';
 
@@ -34,21 +38,66 @@ class LibraryView extends StatelessWidget {
           ),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.cast_outlined,
-              color: Colors.white,
-              size: 22,
-            ),
-            onPressed: () {},
+          // Cast Icon
+          AnimatedBuilder(
+            animation: CastService.instance,
+            builder: (context, _) {
+              final isConnected = CastService.instance.isConnected;
+              return IconButton(
+                icon: Icon(
+                  isConnected ? Icons.cast_connected_rounded : Icons.cast_outlined,
+                  color: isConnected ? const Color(0xFF4285F4) : Colors.white,
+                  size: 22,
+                ),
+                tooltip: isConnected ? 'Casting to TV' : 'Connect to a device',
+                onPressed: () => CastBottomSheet.show(context),
+              );
+            },
           ),
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: Colors.white,
-              size: 23,
-            ),
-            onPressed: () {},
+
+          // Notifications Bell
+          AnimatedBuilder(
+            animation: NotificationService.instance,
+            builder: (context, _) {
+              final unreadCount = NotificationService.instance.unreadCount;
+              return IconButton(
+                tooltip: 'Notifications',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotificationsView()),
+                  );
+                },
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 23),
+                    if (unreadCount > 0)
+                      Positioned(
+                        top: -3,
+                        right: -3,
+                        child: Container(
+                          padding: const EdgeInsets.all(3.5),
+                          decoration: const BoxDecoration(
+                            color: AppColors.youtubeRed,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            unreadCount > 9 ? '9+' : '$unreadCount',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(

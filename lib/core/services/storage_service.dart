@@ -101,6 +101,36 @@ class StorageService {
     return _prefs?.remove(_keyUserData) ?? false;
   }
 
+  static const _keySavedAccounts = 'saved_google_accounts';
+
+  List<UserModel> getSavedAccounts() {
+    final rawList = _prefs?.getStringList(_keySavedAccounts);
+    if (rawList == null || rawList.isEmpty) return [];
+    final list = <UserModel>[];
+    for (final raw in rawList) {
+      try {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        list.add(UserModel.fromJson(json));
+      } catch (_) {}
+    }
+    return list;
+  }
+
+  Future<bool> addSavedAccount(UserModel user) async {
+    final current = getSavedAccounts();
+    current.removeWhere((u) => u.email.toLowerCase() == user.email.toLowerCase());
+    current.insert(0, user);
+    final rawList = current.map((u) => jsonEncode(u.toJson())).toList();
+    return _prefs?.setStringList(_keySavedAccounts, rawList) ?? false;
+  }
+
+  Future<bool> removeSavedAccount(String email) async {
+    final current = getSavedAccounts();
+    current.removeWhere((u) => u.email.toLowerCase() == email.toLowerCase());
+    final rawList = current.map((u) => jsonEncode(u.toJson())).toList();
+    return _prefs?.setStringList(_keySavedAccounts, rawList) ?? false;
+  }
+
   // --- Timer State Persistence ---
 
   TimerModel getTimerState() {

@@ -1,10 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tube_tune/core/constants/app_categories.dart';
+import 'package:tube_tune/core/services/auth_service.dart';
+import 'package:tube_tune/core/services/cast_service.dart';
 import 'package:tube_tune/core/services/filter_service.dart';
+import 'package:tube_tune/core/services/notification_service.dart';
 import 'package:tube_tune/models/timer_model.dart';
 import 'package:tube_tune/models/video_model.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('TubeTune Comprehensive Filter & Protection Tests', () {
     final filterService = FilterService.instance;
 
@@ -320,6 +324,52 @@ void main() {
         isFalse,
         reason: 'Non-live catalog video must be filtered out under Live TV category',
       );
+    });
+
+    test('9. CastService: Discovers Smart TVs, connects, adjusts volume, and links TV code', () async {
+      final castService = CastService.instance;
+      expect(castService.isConnected, isFalse);
+
+      await castService.startScanning();
+      expect(castService.availableDevices.isNotEmpty, isTrue);
+
+      final tv = castService.availableDevices.first;
+      await castService.connectToDevice(tv);
+      expect(castService.isConnected, isTrue);
+      expect(castService.connectedDevice?.name, tv.name);
+
+      castService.setVolume(0.5);
+      expect(castService.volume, 0.5);
+
+      castService.disconnect();
+      expect(castService.isConnected, isFalse);
+
+      final linked = await castService.linkWithTvCode('123456789012');
+      expect(linked, isTrue);
+      expect(castService.isConnected, isTrue);
+      castService.disconnect();
+    });
+
+    test('10. NotificationService: Tracks unread count, marks as read, and removes notification', () {
+      final notifService = NotificationService.instance;
+      expect(notifService.notifications.isNotEmpty, isTrue);
+      
+      final initialUnread = notifService.unreadCount;
+      expect(initialUnread, greaterThan(0));
+
+      notifService.markAllAsRead();
+      expect(notifService.unreadCount, 0);
+
+      final initialLength = notifService.notifications.length;
+      final firstId = notifService.notifications.first.id;
+      notifService.removeNotification(firstId);
+      expect(notifService.notifications.length, initialLength - 1);
+    });
+
+    test('11. AuthService: Name formatter extracts clean display names from real Gmails', () {
+      expect(AuthService.formatNameFromEmail('hossain.ahmed@gmail.com'), 'Hossain Ahmed');
+      expect(AuthService.formatNameFromEmail('tanvir_hasan_bd@gmail.com'), 'Tanvir Hasan Bd');
+      expect(AuthService.formatNameFromEmail('simpleuser@gmail.com'), 'Simpleuser');
     });
   });
 }

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/cast_service.dart';
+import '../../core/services/notification_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../notifications/notifications_view.dart';
 import '../search/search_view.dart';
 import '../settings/settings_view.dart';
-import 'app_snackbar.dart';
+import 'cast_bottom_sheet.dart';
 import 'google_signin_dialog.dart';
 
 /// Top YouTube App Bar with official YouTube logo styling, Cast, Notifications, Search, and Profile Avatar.
@@ -58,28 +61,64 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: [
-        // Cast Icon (Authentic YouTube)
-        IconButton(
-          icon: const Icon(Icons.cast_outlined, size: 22, color: Colors.white),
-          tooltip: 'Cast to TV',
-          onPressed: () {
-            AppSnackBar.showInfo(
-              context,
-              'Searching for cast devices...',
-              icon: Icons.cast_connected_rounded,
+        // Cast Icon (Authentic YouTube Connect to a Device)
+        AnimatedBuilder(
+          animation: CastService.instance,
+          builder: (context, _) {
+            final isConnected = CastService.instance.isConnected;
+            return IconButton(
+              icon: Icon(
+                isConnected ? Icons.cast_connected_rounded : Icons.cast_outlined,
+                size: 22,
+                color: isConnected ? const Color(0xFF4285F4) : Colors.white,
+              ),
+              tooltip: isConnected ? 'Casting to TV' : 'Connect to a device',
+              onPressed: () => CastBottomSheet.show(context),
             );
           },
         ),
 
-        // Notifications Bell (Authentic YouTube)
-        IconButton(
-          icon: const Icon(Icons.notifications_none_outlined, size: 23, color: Colors.white),
-          tooltip: 'Notifications',
-          onPressed: () {
-            AppSnackBar.showInfo(
-              context,
-              'No new notifications',
-              icon: Icons.notifications_none_outlined,
+        // Notifications Bell (Authentic YouTube with live unread counter badge)
+        AnimatedBuilder(
+          animation: NotificationService.instance,
+          builder: (context, _) {
+            final unreadCount = NotificationService.instance.unreadCount;
+            return IconButton(
+              tooltip: 'Notifications',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const NotificationsView()),
+                );
+              },
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.notifications_none_outlined, size: 23, color: Colors.white),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -3,
+                      right: -3,
+                      child: Container(
+                        padding: const EdgeInsets.all(3.5),
+                        decoration: const BoxDecoration(
+                          color: AppColors.youtubeRed,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         ),

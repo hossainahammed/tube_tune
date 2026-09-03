@@ -12,10 +12,12 @@ import '../../core/services/youtube_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../core/services/cast_service.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
 import '../shared/app_snackbar.dart';
+import '../shared/cast_bottom_sheet.dart';
 import '../shared/channel_avatar_widget.dart';
 import '../shared/timer_status_bar.dart';
 
@@ -618,11 +620,21 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                       ),
                     ),
                     const SizedBox(width: 14),
-                    IconButton(
-                      icon: const Icon(Icons.cast, color: Colors.white, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () {},
+                    AnimatedBuilder(
+                      animation: CastService.instance,
+                      builder: (context, _) {
+                        final isConnected = CastService.instance.isConnected;
+                        return IconButton(
+                          icon: Icon(
+                            isConnected ? Icons.cast_connected_rounded : Icons.cast,
+                            color: isConnected ? const Color(0xFF4285F4) : Colors.white,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          onPressed: () => CastBottomSheet.show(context),
+                        );
+                      },
                     ),
                     const SizedBox(width: 14),
                     // Captions toggle button

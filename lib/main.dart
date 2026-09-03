@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/auth_service.dart';
+import 'core/services/cast_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/timer_service.dart';
 import 'core/services/youtube_service.dart';
@@ -23,7 +25,7 @@ void main() async {
   // Initialize background audio foreground service for continuous playback
   try {
     await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.example.tube_tune.channel.audio',
+      androidNotificationChannelId: 'com.tubetune.app.channel.audio',
       androidNotificationChannelName: 'TubeTune Background Playback',
       androidNotificationOngoing: true,
       androidNotificationIcon: 'drawable/ic_bg_music',
@@ -76,6 +78,8 @@ class TubeTuneApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: timerService),
         ChangeNotifierProvider.value(value: authService),
+        ChangeNotifierProvider.value(value: CastService.instance),
+        ChangeNotifierProvider.value(value: NotificationService.instance),
         ChangeNotifierProvider(
           create: (_) => AuthViewModel(authService: authService),
         ),
