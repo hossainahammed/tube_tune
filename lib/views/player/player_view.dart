@@ -18,6 +18,8 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
+import '../notifications/notifications_view.dart';
+import '../search/search_view.dart';
 import '../shared/app_snackbar.dart';
 import '../shared/cast_bottom_sheet.dart';
 import '../shared/channel_avatar_widget.dart';
@@ -43,6 +45,8 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   bool _isInPip = false;
   bool _isFullScreen = false;
   final TextEditingController _commentInputController = TextEditingController();
+  final TextEditingController _desktopCommentInputController = TextEditingController();
+  final ScrollController _desktopScrollController = ScrollController();
 
   Function(bool)? _pipListener;
 
@@ -346,6 +350,8 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     // NOTE: We deliberately do NOT dispose playerVm.videoController here!
     // This allows the video and audio to continue playing seamlessly in the Mini-Player!
     _commentInputController.dispose();
+    _desktopCommentInputController.dispose();
+    _desktopScrollController.dispose();
     if (!kIsWeb && _isFullScreen) {
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -943,11 +949,17 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       return Stack(
         fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
-            imageUrl: currentVideo.thumbnailUrl,
-            fit: BoxFit.cover,
-            errorWidget: (context, url, error) => Container(color: Colors.black),
-          ),
+          kIsWeb
+              ? Image.network(
+                  currentVideo.thumbnailUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, url, error) => Container(color: Colors.black),
+                )
+              : CachedNetworkImage(
+                  imageUrl: currentVideo.thumbnailUrl,
+                  fit: BoxFit.cover,
+                  errorWidget: (context, url, error) => Container(color: Colors.black),
+                ),
           Container(color: Colors.black54),
           const Center(
             child: CircularProgressIndicator(color: AppColors.youtubeRed),
@@ -956,7 +968,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       );
     }
 
-    // Graceful fallback to Iframe if direct stream was unavailable
+    // Graceful fallback to Iframe if direct stream was unavailable (or on Web)
     final iframe = playerVm.iframeController;
     if (iframe != null) {
       return Stack(
@@ -967,19 +979,20 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
             controller: iframe,
             aspectRatio: 16 / 9,
           ),
-          Positioned(
-            top: 8,
-            left: 8,
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.black.withValues(alpha: 0.6),
-              child: IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
-                padding: EdgeInsets.zero,
-                onPressed: () => Navigator.pop(context),
+          if (!kIsWeb)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.black.withValues(alpha: 0.6),
+                child: IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+                  padding: EdgeInsets.zero,
+                  onPressed: () => Navigator.pop(context),
+                ),
               ),
             ),
-          ),
         ],
       );
     }
@@ -988,11 +1001,17 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CachedNetworkImage(
-          imageUrl: currentVideo.thumbnailUrl,
-          fit: BoxFit.cover,
-          errorWidget: (context, url, error) => Container(color: Colors.black),
-        ),
+        kIsWeb
+            ? Image.network(
+                currentVideo.thumbnailUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, url, error) => Container(color: Colors.black),
+              )
+            : CachedNetworkImage(
+                imageUrl: currentVideo.thumbnailUrl,
+                fit: BoxFit.cover,
+                errorWidget: (context, url, error) => Container(color: Colors.black),
+              ),
         Container(color: Colors.black87),
         Center(
           child: Column(
@@ -1101,454 +1120,1135 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
           _toggleFullScreen();
         }
       },
-      child: Scaffold(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 900) {
+            return _buildDesktopWatchLayout(
+              context,
+              playerVm,
+              currentVideo,
+              authVm,
+              isLiked,
+              displayLikeCount,
+            );
+          }
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            resizeToAvoidBottomInset: false,
+            body: SafeArea(
+              bottom: false,
+              child: _buildMobileWatchLayout(
+                context,
+                constraints,
+                playerVm,
+                currentVideo,
+                authVm,
+                isLiked,
+                displayLikeCount,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Authentic YouTube Web Desktop 2-Column Watch Page
+  Widget _buildDesktopWatchLayout(
+    BuildContext context,
+    PlayerViewModel playerVm,
+    VideoModel currentVideo,
+    AuthViewModel authVm,
+    bool isLiked,
+    String displayLikeCount,
+  ) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
         backgroundColor: AppColors.background,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          bottom: false,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxHeight <= 0) return const SizedBox.shrink();
-              final playerHeight = (constraints.maxWidth * 9 / 16).clamp(0.0, constraints.maxHeight);
-              final remainingHeight = constraints.maxHeight - playerHeight;
-              final hasRoomForFeed = remainingHeight > 40;
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          tooltip: 'Back to Feed',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Image.asset('assets/icons/app_icon.png', width: 26, height: 26),
+            const SizedBox(width: 8),
+            const Text(
+              'TubeTune',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.8,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Cast icon
+          AnimatedBuilder(
+            animation: CastService.instance,
+            builder: (context, _) {
+              final isConnected = CastService.instance.isConnected;
+              return IconButton(
+                icon: Icon(
+                  isConnected ? Icons.cast_connected_rounded : Icons.cast_outlined,
+                  color: isConnected ? const Color(0xFF4285F4) : Colors.white,
+                  size: 20,
+                ),
+                tooltip: 'Connect to a device',
+                onPressed: () => CastBottomSheet.show(context),
+              );
+            },
+          ),
+          // Notifications
+          IconButton(
+            icon: const Icon(Icons.notifications_none_outlined, color: Colors.white, size: 21),
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsView()));
+            },
+          ),
+          // Search
+          IconButton(
+            icon: const Icon(Icons.search_outlined, color: Colors.white, size: 22),
+            tooltip: 'Search',
+            onPressed: () {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchView()));
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: SingleChildScrollView(
+        controller: _desktopScrollController,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1600),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Left Column (Primary: Video Player, Title, Channel, Actions, Description, Full Comments)
+                Expanded(
+                  flex: 7,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Video Player Surface (16:9) with rounded corners
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: _buildVideoPlayerSurface(playerVm, currentVideo),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
 
-              return Column(
-                children: [
-                  const TimerStatusBar(),
+                      // Video Title
+                      Text(
+                        currentVideo.title,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
 
-                  // Top Video Player Container (16:9)
-                  SizedBox(
-                    width: constraints.maxWidth,
-                    height: playerHeight,
-                    child: _buildVideoPlayerSurface(playerVm, currentVideo),
-                  ),
-
-                  // Scrollable Video Details & Feed
-                  if (hasRoomForFeed)
-                    Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.zero,
+                      // Channel Row & Actions Bar
+                      Row(
                         children: [
-                          // Video Title
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-                            child: Text(
-                              currentVideo.title,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                                height: 1.3,
-                              ),
-                            ),
+                          // Channel Avatar
+                          ChannelAvatarWidget(
+                            author: currentVideo.author,
+                            avatarUrl: currentVideo.channelAvatarUrl,
+                            channelId: currentVideo.channelId,
+                            radius: 20,
                           ),
-
-                          // Views, Upload Date, and Expandable Description Preview
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: InkWell(
-                              onTap: () {
-                                setState(() {
-                                  _isDescriptionExpanded = !_isDescriptionExpanded;
-                                });
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        currentVideo.viewCountFormatted,
-                                        style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        currentVideo.uploadDate,
-                                        style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _isDescriptionExpanded ? 'Show less' : '...more',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  if (_isDescriptionExpanded && currentVideo.description.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surfaceElevated,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        currentVideo.description,
-                                        style: const TextStyle(fontSize: 12, color: Color(0xFFDDDDDD), height: 1.4),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 12),
-
-                          // Channel Row (Avatar, Name, Subscriber count, Subscribe Button)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
+                          const SizedBox(width: 12),
+                          // Channel Name & Subscribers
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ChannelAvatarWidget(
-                                  author: currentVideo.author,
-                                  avatarUrl: currentVideo.channelAvatarUrl,
-                                  channelId: currentVideo.channelId,
-                                  radius: 18,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        currentVideo.author,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const Text(
-                                        '3.85M subscribers',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // YouTube Subscribe Button
-                                Consumer<SubscriptionService>(
-                                  builder: (context, subService, _) {
-                                    final isSubscribed = subService.isSubscribed(currentVideo.author);
-                                    return ElevatedButton(
-                                      onPressed: () async {
-                                        final nowSubscribed = await subService.toggleSubscriptionFromVideo(currentVideo);
-                                        if (context.mounted) {
-                                          if (nowSubscribed) {
-                                            AppSnackBar.showSuccess(
-                                              context,
-                                              'Subscribed to ${currentVideo.author}',
-                                              icon: Icons.subscriptions_rounded,
-                                            );
-                                          } else {
-                                            AppSnackBar.showInfo(
-                                              context,
-                                              'Subscription removed',
-                                              icon: Icons.notifications_off_outlined,
-                                            );
-                                          }
-                                        }
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: isSubscribed ? AppColors.surfaceElevated : Colors.white,
-                                        foregroundColor: isSubscribed ? Colors.white : Colors.black,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (isSubscribed) ...[
-                                            const Icon(Icons.notifications_active, size: 14, color: Colors.white),
-                                            const SizedBox(width: 4),
-                                          ],
-                                          Text(
-                                            isSubscribed ? 'Subscribed' : 'Subscribe',
-                                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // Actions Bar (Unified Like/Dislike, Share, Remix, Download, Save)
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              children: [
-                                // Unified YouTube Like / Dislike Pill Button
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceElevated,
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      InkWell(
-                                        onTap: () {
-                                          if (_isDisliked) setState(() => _isDisliked = false);
-                                          playerVm.toggleLike(currentVideo.id);
-                                        },
-                                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                          child: Row(
-                                            children: [
-                                              Icon(
-                                                isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                                                size: 16,
-                                                color: isLiked ? Colors.white : const Color(0xFFAAAAAA),
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                displayLikeCount,
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        width: 1,
-                                        height: 18,
-                                        color: AppColors.surfaceLight,
-                                      ),
-                                      InkWell(
-                                        onTap: () {
-                                          setState(() {
-                                            _isDisliked = !_isDisliked;
-                                          });
-                                          if (_isDisliked && isLiked) {
-                                            playerVm.toggleLike(currentVideo.id);
-                                          }
-                                        },
-                                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                          child: Icon(
-                                            _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
-                                            size: 16,
-                                            color: _isDisliked ? Colors.white : const Color(0xFFAAAAAA),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Share Button
-                                _buildActionPill(
-                                  icon: Icons.share_outlined,
-                                  label: 'Share',
-                                  onTap: () => _showShareBottomSheet(context),
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Remix Button
-                                _buildActionPill(
-                                  icon: Icons.cut_outlined,
-                                  label: 'Remix',
-                                  onTap: () => _showRemixBottomSheet(context),
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Download Button (Real Offline Download)
-                                AnimatedBuilder(
-                                  animation: DownloadService.instance,
-                                  builder: (context, _) {
-                                    final isDownloaded = DownloadService.instance.isDownloaded(currentVideo.id);
-                                    final isDownloading = DownloadService.instance.isDownloading(currentVideo.id);
-                                    final progress = (DownloadService.instance.getProgress(currentVideo.id) * 100).toInt();
-
-                                    String label = 'Download';
-                                    IconData icon = Icons.download_outlined;
-                                    if (isDownloaded) {
-                                      label = 'Downloaded';
-                                      icon = Icons.download_done_rounded;
-                                    } else if (isDownloading) {
-                                      label = '$progress%';
-                                      icon = Icons.downloading_rounded;
-                                    }
-
-                                    return _buildActionPill(
-                                      icon: icon,
-                                      label: label,
-                                      onTap: () async {
-                                        if (kIsWeb) {
-                                          AppSnackBar.showInfo(
-                                            context,
-                                            'Offline video downloads are available on mobile app',
-                                            icon: Icons.smartphone_rounded,
-                                          );
-                                          return;
-                                        }
-                                        if (isDownloaded) {
-                                          AppSnackBar.showInfo(
-                                            context,
-                                            'This video is downloaded for offline playback',
-                                            icon: Icons.check_circle_rounded,
-                                          );
-                                          return;
-                                        }
-                                        if (isDownloading) {
-                                          AppSnackBar.showInfo(
-                                            context,
-                                            'Downloading in progress ($progress%)...',
-                                            icon: Icons.downloading_rounded,
-                                          );
-                                          return;
-                                        }
-
-                                        AppSnackBar.showInfo(
-                                          context,
-                                          'Downloading "${currentVideo.title}" for offline mode...',
-                                          icon: Icons.download_rounded,
-                                        );
-
-                                        final success = await DownloadService.instance.downloadVideo(currentVideo);
-                                        if (context.mounted) {
-                                          if (success) {
-                                            AppSnackBar.showSuccess(
-                                              context,
-                                              'Download complete! Ready for offline viewing in Library.',
-                                              icon: Icons.download_done_rounded,
-                                            );
-                                          } else {
-                                            AppSnackBar.showError(
-                                              context,
-                                              'Failed to download video. Please check your connection.',
-                                            );
-                                          }
-                                        }
-                                      },
-                                    );
-                                  },
-                                ),
-                                const SizedBox(width: 8),
-
-                                // Save to Watch Later
-                                _buildActionPill(
-                                  icon: playerVm.isWatchLater(currentVideo.id) ? Icons.bookmark : Icons.bookmark_border,
-                                  label: playerVm.isWatchLater(currentVideo.id) ? 'Saved' : 'Save',
-                                  onTap: () => playerVm.toggleWatchLater(currentVideo),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // Comments Teaser Card (Tap to open full interactive comments sheet)
-                          InkWell(
-                            onTap: () => _showCommentsBottomSheet(context),
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 14),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Text(
-                                        'Comments',
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '${playerVm.comments.length}',
-                                        style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-                                      ),
-                                      const Spacer(),
-                                      const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFFAAAAAA)),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 12,
-                                        backgroundColor: const Color(0xFF4285F4),
-                                        child: Text(
-                                          authVm.currentUser.name.isNotEmpty
-                                              ? authVm.currentUser.name[0]
-                                              : 'Y',
-                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          playerVm.comments.isNotEmpty
-                                              ? playerVm.comments.first.text
-                                              : 'Add a comment...',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(fontSize: 12, color: Colors.white),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          // Up Next / Related Videos List
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  'Up Next',
-                                  style: TextStyle(
+                                Text(
+                                  currentVideo.author,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                     color: Colors.white,
                                   ),
                                 ),
-                                Text(
-                                  '${playerVm.relatedVideos.length} safe videos',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                const Text(
+                                  '3.85M subscribers',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          // YouTube Subscribe Button
+                          Consumer<SubscriptionService>(
+                            builder: (context, subService, _) {
+                              final isSubscribed = subService.isSubscribed(currentVideo.author);
+                              return ElevatedButton(
+                                onPressed: () async {
+                                  final nowSubscribed = await subService.toggleSubscriptionFromVideo(currentVideo);
+                                  if (context.mounted) {
+                                    if (nowSubscribed) {
+                                      AppSnackBar.showSuccess(
+                                        context,
+                                        'Subscribed to ${currentVideo.author}',
+                                        icon: Icons.subscriptions_rounded,
+                                      );
+                                    } else {
+                                      AppSnackBar.showInfo(
+                                        context,
+                                        'Subscription removed',
+                                        icon: Icons.notifications_off_outlined,
+                                      );
+                                    }
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isSubscribed ? AppColors.surfaceElevated : Colors.white,
+                                  foregroundColor: isSubscribed ? Colors.white : Colors.black,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                ),
+                                child: Text(
+                                  isSubscribed ? 'Subscribed' : 'Subscribe',
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(width: 16),
 
-                          ...playerVm.relatedVideos.map(
-                            (v) => VideoCardWidget(video: v),
+                          // Actions Row (Like/Dislike, Share, Remix, Download, Save)
+                          _buildDesktopActionPills(context, playerVm, currentVideo, isLiked, displayLikeCount),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Expandable Description Box
+                      _buildDesktopDescriptionBox(currentVideo),
+                      const SizedBox(height: 24),
+
+                      // Desktop Inline Comments Section
+                      _buildDesktopInlineComments(context, playerVm, authVm, currentVideo),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(width: 24),
+
+                // Right Sidebar Column ("Up Next" / Related Videos Queue)
+                SizedBox(
+                  width: 400,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Up Next',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          Text(
+                            '${playerVm.relatedVideos.length} safe videos',
+                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ...playerVm.relatedVideos.map((v) => _buildDesktopRelatedVideoCard(v, playerVm)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact YouTube Desktop Related Video Card
+  Widget _buildDesktopRelatedVideoCard(VideoModel video, PlayerViewModel playerVm) {
+    return InkWell(
+      onTap: () {
+        playerVm.playVideo(video);
+        _desktopScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail (168 x 94) with duration badge
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 168,
+                height: 94,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    kIsWeb
+                        ? Image.network(
+                            video.thumbnailUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Icon(Icons.play_circle_outline, size: 36, color: AppColors.textMuted),
+                            ),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: video.thumbnailUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(color: AppColors.surfaceElevated),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Icon(Icons.play_circle_outline, size: 36, color: AppColors.textMuted),
+                            ),
+                          ),
+                    Positioned(
+                      bottom: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: video.isLive ? AppColors.youtubeRed : Colors.black.withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          video.isLive ? 'LIVE' : video.durationFormatted,
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Metadata Info: Title, Author, Views & Date
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    video.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    video.author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    video.isLive
+                        ? '🔴 ${video.viewCountFormatted} watching'
+                        : '${video.viewCountFormatted} • ${video.uploadDate}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Desktop Expandable Description Box
+  Widget _buildDesktopDescriptionBox(VideoModel currentVideo) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                currentVideo.viewCountFormatted,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                currentVideo.uploadDate,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            currentVideo.description.isNotEmpty
+                ? currentVideo.description
+                : 'No description provided for this video.',
+            maxLines: _isDescriptionExpanded ? null : 3,
+            overflow: _isDescriptionExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, color: Color(0xFFDDDDDD), height: 1.4),
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _isDescriptionExpanded = !_isDescriptionExpanded;
+              });
+            },
+            child: Text(
+              _isDescriptionExpanded ? 'Show less' : '...more',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Desktop Inline Comments Section with Add Comment input & Interactive comments list
+  Widget _buildDesktopInlineComments(
+    BuildContext context,
+    PlayerViewModel playerVm,
+    AuthViewModel authVm,
+    VideoModel currentVideo,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Comment Count & Sort Row
+        Row(
+          children: [
+            Text(
+              '${playerVm.comments.length} Comments',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(width: 24),
+            PopupMenuButton<CommentSortOrder>(
+              tooltip: 'Sort by',
+              color: AppColors.surfaceElevated,
+              elevation: 8,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              onSelected: (order) => playerVm.setCommentSortOrder(order),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: CommentSortOrder.top,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check,
+                        size: 18,
+                        color: playerVm.commentSortOrder == CommentSortOrder.top ? Colors.white : Colors.transparent,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Top comments',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: playerVm.commentSortOrder == CommentSortOrder.top ? FontWeight.bold : FontWeight.normal,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: CommentSortOrder.newest,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check,
+                        size: 18,
+                        color: playerVm.commentSortOrder == CommentSortOrder.newest ? Colors.white : Colors.transparent,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Newest first',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: playerVm.commentSortOrder == CommentSortOrder.newest ? FontWeight.bold : FontWeight.normal,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.sort, color: Colors.white, size: 20),
+                  SizedBox(width: 6),
+                  Text('Sort by', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Add Comment Box (YouTube Desktop inline)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFF4285F4),
+              child: Text(
+                authVm.currentUser.name.isNotEmpty ? authVm.currentUser.name[0] : 'Y',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  TextField(
+                    controller: _desktopCommentInputController,
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    decoration: const InputDecoration(
+                      hintText: 'Add a comment...',
+                      hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF717171)),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.white),
+                      ),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    ),
+                    onSubmitted: (val) {
+                      if (val.trim().isNotEmpty) {
+                        playerVm.addComment(currentVideo.id, val, authVm.currentUser);
+                        _desktopCommentInputController.clear();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final text = _desktopCommentInputController.text;
+                      if (text.trim().isNotEmpty) {
+                        playerVm.addComment(currentVideo.id, text, authVm.currentUser);
+                        _desktopCommentInputController.clear();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3EA6FF),
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    ),
+                    child: const Text('Comment', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // List of comments
+        if (playerVm.comments.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text(
+                'No comments yet. Be the first to comment!',
+                style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
+              ),
+            ),
+          )
+        else
+          ...playerVm.comments.map((c) => Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: _buildCommentTile(c, playerVm),
+              )),
+      ],
+    );
+  }
+
+  /// Action Pills Row for Desktop
+  Widget _buildDesktopActionPills(
+    BuildContext context,
+    PlayerViewModel playerVm,
+    VideoModel currentVideo,
+    bool isLiked,
+    String displayLikeCount,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Like / Dislike Pill
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              InkWell(
+                onTap: () {
+                  if (_isDisliked) setState(() => _isDisliked = false);
+                  playerVm.toggleLike(currentVideo.id);
+                },
+                borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                        size: 16,
+                        color: isLiked ? Colors.white : const Color(0xFFAAAAAA),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        displayLikeCount,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Container(width: 1, height: 18, color: AppColors.surfaceLight),
+              InkWell(
+                onTap: () {
+                  setState(() => _isDisliked = !_isDisliked);
+                  if (_isDisliked && isLiked) playerVm.toggleLike(currentVideo.id);
+                },
+                borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Icon(
+                    _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                    size: 16,
+                    color: _isDisliked ? Colors.white : const Color(0xFFAAAAAA),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        _buildActionPill(
+          icon: Icons.share_outlined,
+          label: 'Share',
+          onTap: () => _showShareBottomSheet(context),
+        ),
+        const SizedBox(width: 8),
+
+        _buildActionPill(
+          icon: Icons.cut_outlined,
+          label: 'Remix',
+          onTap: () => _showRemixBottomSheet(context),
+        ),
+        const SizedBox(width: 8),
+
+        _buildActionPill(
+          icon: playerVm.isWatchLater(currentVideo.id) ? Icons.bookmark : Icons.bookmark_border,
+          label: playerVm.isWatchLater(currentVideo.id) ? 'Saved' : 'Save',
+          onTap: () => playerVm.toggleWatchLater(currentVideo),
+        ),
+      ],
+    );
+  }
+
+  /// Mobile Single-Column Watch Layout
+  Widget _buildMobileWatchLayout(
+    BuildContext context,
+    BoxConstraints constraints,
+    PlayerViewModel playerVm,
+    VideoModel currentVideo,
+    AuthViewModel authVm,
+    bool isLiked,
+    String displayLikeCount,
+  ) {
+    final playerHeight = constraints.maxWidth * 9 / 16;
+
+    return Column(
+      children: [
+        const TimerStatusBar(),
+
+        // Top Video Player Container (16:9)
+        SizedBox(
+          width: constraints.maxWidth,
+          height: playerHeight,
+          child: _buildVideoPlayerSurface(playerVm, currentVideo),
+        ),
+
+        // Scrollable Video Details & Feed (Always expanded and scrollable)
+        Expanded(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              // Video Title
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                child: Text(
+                  currentVideo.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+
+              // Views, Upload Date, and Expandable Description Preview
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isDescriptionExpanded = !_isDescriptionExpanded;
+                    });
+                  },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            currentVideo.viewCountFormatted,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            currentVideo.uploadDate,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _isDescriptionExpanded ? 'Show less' : '...more',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_isDescriptionExpanded && currentVideo.description.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            currentVideo.description,
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFDDDDDD), height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Channel Row (Avatar, Name, Subscriber count, Subscribe Button)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    ChannelAvatarWidget(
+                      author: currentVideo.author,
+                      avatarUrl: currentVideo.channelAvatarUrl,
+                      channelId: currentVideo.channelId,
+                      radius: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentVideo.author,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const Text(
+                            '3.85M subscribers',
+                            style: TextStyle(fontSize: 11, color: Color(0xFFAAAAAA)),
                           ),
                         ],
                       ),
                     ),
-                ],
+                    // YouTube Subscribe Button
+                    Consumer<SubscriptionService>(
+                      builder: (context, subService, _) {
+                        final isSubscribed = subService.isSubscribed(currentVideo.author);
+                        return ElevatedButton(
+                          onPressed: () async {
+                            final nowSubscribed = await subService.toggleSubscriptionFromVideo(currentVideo);
+                            if (context.mounted) {
+                              if (nowSubscribed) {
+                                AppSnackBar.showSuccess(
+                                  context,
+                                  'Subscribed to ${currentVideo.author}',
+                                  icon: Icons.subscriptions_rounded,
+                                );
+                              } else {
+                                AppSnackBar.showInfo(
+                                  context,
+                                  'Subscription removed',
+                                  icon: Icons.notifications_off_outlined,
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isSubscribed ? AppColors.surfaceElevated : Colors.white,
+                            foregroundColor: isSubscribed ? Colors.white : Colors.black,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSubscribed) ...[
+                                const Icon(Icons.notifications_active, size: 14, color: Colors.white),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                isSubscribed ? 'Subscribed' : 'Subscribe',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Actions Bar (Unified Like/Dislike, Share, Remix, Download, Save)
+              _buildMobileActionsBar(context, playerVm, currentVideo, isLiked, displayLikeCount),
+
+              const SizedBox(height: 14),
+
+              // Comments Teaser Card (Tap to open full interactive comments sheet)
+              InkWell(
+                onTap: () => _showCommentsBottomSheet(context),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Comments',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${playerVm.comments.length}',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
+                          ),
+                          const Spacer(),
+                          const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFFAAAAAA)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 12,
+                            backgroundColor: const Color(0xFF4285F4),
+                            child: Text(
+                              authVm.currentUser.name.isNotEmpty
+                                  ? authVm.currentUser.name[0]
+                                  : 'Y',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              playerVm.comments.isNotEmpty
+                                  ? playerVm.comments.first.text
+                                  : 'Add a comment...',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Up Next / Related Videos List
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Up Next',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '${playerVm.relatedVideos.length} safe videos',
+                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              ...playerVm.relatedVideos.map(
+                (v) => VideoCardWidget(video: v),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Mobile Actions Bar
+  Widget _buildMobileActionsBar(
+    BuildContext context,
+    PlayerViewModel playerVm,
+    VideoModel currentVideo,
+    bool isLiked,
+    String displayLikeCount,
+  ) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          // Unified YouTube Like / Dislike Pill Button
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                InkWell(
+                  onTap: () {
+                    if (_isDisliked) setState(() => _isDisliked = false);
+                    playerVm.toggleLike(currentVideo.id);
+                  },
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                          size: 16,
+                          color: isLiked ? Colors.white : const Color(0xFFAAAAAA),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          displayLikeCount,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 18,
+                  color: AppColors.surfaceLight,
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isDisliked = !_isDisliked;
+                    });
+                    if (_isDisliked && isLiked) {
+                      playerVm.toggleLike(currentVideo.id);
+                    }
+                  },
+                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Icon(
+                      _isDisliked ? Icons.thumb_down : Icons.thumb_down_outlined,
+                      size: 16,
+                      color: _isDisliked ? Colors.white : const Color(0xFFAAAAAA),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Share Button
+          _buildActionPill(
+            icon: Icons.share_outlined,
+            label: 'Share',
+            onTap: () => _showShareBottomSheet(context),
+          ),
+          const SizedBox(width: 8),
+
+          // Remix Button
+          _buildActionPill(
+            icon: Icons.cut_outlined,
+            label: 'Remix',
+            onTap: () => _showRemixBottomSheet(context),
+          ),
+          const SizedBox(width: 8),
+
+          // Download Button (Real Offline Download)
+          AnimatedBuilder(
+            animation: DownloadService.instance,
+            builder: (context, _) {
+              final isDownloaded = DownloadService.instance.isDownloaded(currentVideo.id);
+              final isDownloading = DownloadService.instance.isDownloading(currentVideo.id);
+              final progress = (DownloadService.instance.getProgress(currentVideo.id) * 100).toInt();
+
+              String label = 'Download';
+              IconData icon = Icons.download_outlined;
+              if (isDownloaded) {
+                label = 'Downloaded';
+                icon = Icons.download_done_rounded;
+              } else if (isDownloading) {
+                label = '$progress%';
+                icon = Icons.downloading_rounded;
+              }
+
+              return _buildActionPill(
+                icon: icon,
+                label: label,
+                onTap: () async {
+                  if (kIsWeb) {
+                    AppSnackBar.showInfo(
+                      context,
+                      'Offline video downloads are available on mobile app',
+                      icon: Icons.smartphone_rounded,
+                    );
+                    return;
+                  }
+                  if (isDownloaded) {
+                    AppSnackBar.showInfo(
+                      context,
+                      'This video is downloaded for offline playback',
+                      icon: Icons.check_circle_rounded,
+                    );
+                    return;
+                  }
+                  if (isDownloading) {
+                    AppSnackBar.showInfo(
+                      context,
+                      'Downloading in progress ($progress%)...',
+                      icon: Icons.downloading_rounded,
+                    );
+                    return;
+                  }
+
+                  AppSnackBar.showInfo(
+                    context,
+                    'Downloading "${currentVideo.title}" for offline mode...',
+                    icon: Icons.download_rounded,
+                  );
+
+                  final success = await DownloadService.instance.downloadVideo(currentVideo);
+                  if (context.mounted) {
+                    if (success) {
+                      AppSnackBar.showSuccess(
+                        context,
+                        'Download complete! Ready for offline viewing in Library.',
+                        icon: Icons.download_done_rounded,
+                      );
+                    } else {
+                      AppSnackBar.showError(
+                        context,
+                        'Failed to download video. Please check your connection.',
+                      );
+                    }
+                  }
+                },
               );
             },
           ),
-        ),
+          const SizedBox(width: 8),
+
+          // Save to Watch Later
+          _buildActionPill(
+            icon: playerVm.isWatchLater(currentVideo.id) ? Icons.bookmark : Icons.bookmark_border,
+            label: playerVm.isWatchLater(currentVideo.id) ? 'Saved' : 'Save',
+            onTap: () => playerVm.toggleWatchLater(currentVideo),
+          ),
+        ],
       ),
     );
   }

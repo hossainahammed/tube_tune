@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../models/video_model.dart';
 import '../../viewmodels/home_viewmodel.dart';
-import '../shared/custom_app_bar.dart';
 import '../shared/timer_status_bar.dart';
 import 'widgets/breaking_news_shelf_widget.dart';
 import 'widgets/category_chips_widget.dart';
@@ -46,8 +46,8 @@ class _HomeViewState extends State<HomeView> {
     final homeVm = context.watch<HomeViewModel>();
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: false,
-      appBar: const CustomAppBar(),
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (constraints.maxHeight < 80) {
@@ -149,65 +149,124 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    // 4. Authentic YouTube Segmented Feed with Infinite Scrolling & Personalized Suggestions
-    final List<Widget> feedItems = [];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 700;
+        final columns = constraints.maxWidth >= 1300
+            ? 4
+            : (constraints.maxWidth >= 950 ? 3 : 2);
 
-    // Live Streams / Breaking News Shelf
-    if (homeVm.liveStreams.isNotEmpty) {
-      feedItems.add(BreakingNewsShelfWidget(liveStreams: homeVm.liveStreams));
-    }
+        // 4. Authentic YouTube Segmented Feed with Infinite Scrolling & Personalized Suggestions
+        final List<Widget> feedItems = [];
 
-    // First batch of regular feed videos
-    final initialCount = homeVm.videos.length >= 2 ? 2 : homeVm.videos.length;
-    for (int i = 0; i < initialCount; i++) {
-      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
-    }
+        // Live Streams / Breaking News Shelf
+        if (homeVm.liveStreams.isNotEmpty) {
+          feedItems.add(BreakingNewsShelfWidget(liveStreams: homeVm.liveStreams));
+        }
 
-    // YouTube-style Personalized Suggested Videos Shelf
-    if (homeVm.suggestedVideos.isNotEmpty) {
-      feedItems.add(SuggestedShelfWidget(suggestedVideos: homeVm.suggestedVideos));
-    }
+        // First batch of regular feed videos
+        final initialCount = isWide
+            ? (homeVm.videos.length >= columns ? columns : homeVm.videos.length)
+            : (homeVm.videos.length >= 2 ? 2 : homeVm.videos.length);
 
-    // Second batch of regular videos
-    final secondBatchEnd = homeVm.videos.length >= 5 ? 5 : homeVm.videos.length;
-    for (int i = initialCount; i < secondBatchEnd; i++) {
-      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
-    }
+        if (initialCount > 0) {
+          if (isWide) {
+            feedItems.add(_buildVideoGrid(homeVm.videos.sublist(0, initialCount), columns));
+          } else {
+            for (int i = 0; i < initialCount; i++) {
+              feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+            }
+          }
+        }
 
-    // Shorts Shelf
-    if (homeVm.showShortsShelf && homeVm.shorts.isNotEmpty) {
-      feedItems.add(ShortsShelfWidget(shorts: homeVm.shorts));
-    }
+        // YouTube-style Personalized Suggested Videos Shelf
+        if (homeVm.suggestedVideos.isNotEmpty) {
+          feedItems.add(SuggestedShelfWidget(suggestedVideos: homeVm.suggestedVideos));
+        }
 
-    // Remaining regular feed videos
-    for (int i = secondBatchEnd; i < homeVm.videos.length; i++) {
-      feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
-    }
+        // Second batch of regular videos
+        final secondBatchEnd = isWide
+            ? (homeVm.videos.length >= initialCount + columns * 2 ? initialCount + columns * 2 : homeVm.videos.length)
+            : (homeVm.videos.length >= 5 ? 5 : homeVm.videos.length);
 
-    // Bottom Infinite Scroll Spinner
-    if (homeVm.isLoadingMore) {
-      feedItems.add(
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 24),
-          child: Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                color: AppColors.youtubeRed,
+        if (secondBatchEnd > initialCount) {
+          if (isWide) {
+            feedItems.add(_buildVideoGrid(homeVm.videos.sublist(initialCount, secondBatchEnd), columns));
+          } else {
+            for (int i = initialCount; i < secondBatchEnd; i++) {
+              feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+            }
+          }
+        }
+
+        // Shorts Shelf
+        if (homeVm.showShortsShelf && homeVm.shorts.isNotEmpty) {
+          feedItems.add(ShortsShelfWidget(shorts: homeVm.shorts));
+        }
+
+        // Remaining regular feed videos
+        if (homeVm.videos.length > secondBatchEnd) {
+          if (isWide) {
+            feedItems.add(_buildVideoGrid(homeVm.videos.sublist(secondBatchEnd), columns));
+          } else {
+            for (int i = secondBatchEnd; i < homeVm.videos.length; i++) {
+              feedItems.add(VideoCardWidget(video: homeVm.videos[i]));
+            }
+          }
+        }
+
+        // Bottom Infinite Scroll Spinner
+        if (homeVm.isLoadingMore) {
+          feedItems.add(
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.youtubeRed,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      );
-    }
+          );
+        }
 
-    return ListView.builder(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: feedItems.length,
-      itemBuilder: (context, index) => feedItems[index],
+        return ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: feedItems.length,
+          itemBuilder: (context, index) => feedItems[index],
+        );
+      },
+    );
+  }
+
+  Widget _buildVideoGrid(List<VideoModel> videos, int columns) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = (constraints.maxWidth - (columns - 1) * 16) / columns;
+          final itemHeight = itemWidth * 9 / 16 + 115;
+          final ratio = itemWidth / itemHeight;
+
+          return GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 20,
+              childAspectRatio: ratio,
+            ),
+            itemCount: videos.length,
+            itemBuilder: (context, index) => VideoCardWidget(video: videos[index], isGrid: true),
+          );
+        },
+      ),
     );
   }
 }

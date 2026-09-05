@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../models/timer_model.dart';
@@ -1281,7 +1283,134 @@ class _SettingsViewState extends State<SettingsView> {
             ),
           ),
 
+          const SizedBox(height: 24),
+
+          // ----------------------------------------------------
+          // SECTION 6: DEVELOPER CONTACT & COPYRIGHT
+          // ----------------------------------------------------
+          _buildDeveloperCard(context),
+
           const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeveloperCard(BuildContext context) {
+    const developerEmail = 'hossainahammed627@gmail.com';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder, width: 0.8),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Image.asset('assets/icons/app_icon.png', width: 28, height: 28),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TubeTune',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'All Rights Reserved © 2026 Hossain Ahammed',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFAAAAAA),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(color: AppColors.surfaceLight, height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Developer Contact / Feedback:',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    ),
+                    Text(
+                      developerEmail,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF3EA6FF),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF3EA6FF)),
+                    tooltip: 'Copy Email',
+                    onPressed: () {
+                      Clipboard.setData(const ClipboardData(text: developerEmail));
+                      AppSnackBar.showSuccess(
+                        context,
+                        'Copied developer email: $developerEmail',
+                        icon: Icons.copy_rounded,
+                      );
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.email_outlined, size: 18, color: AppColors.youtubeRed),
+                    tooltip: 'Send Email',
+                    onPressed: () async {
+                      final Uri mailUri = Uri(
+                        scheme: 'mailto',
+                        path: developerEmail,
+                        query: 'subject=${Uri.encodeComponent('TubeTune Feedback & Recommendation')}',
+                      );
+                      try {
+                        if (await canLaunchUrl(mailUri)) {
+                          await launchUrl(mailUri, mode: LaunchMode.externalApplication);
+                        } else {
+                          await Clipboard.setData(const ClipboardData(text: developerEmail));
+                          if (context.mounted) {
+                            AppSnackBar.showSuccess(
+                              context,
+                              'Email copied: $developerEmail',
+                              icon: Icons.copy_rounded,
+                            );
+                          }
+                        }
+                      } catch (_) {
+                        await Clipboard.setData(const ClipboardData(text: developerEmail));
+                        if (context.mounted) {
+                          AppSnackBar.showSuccess(
+                            context,
+                            'Email copied: $developerEmail',
+                            icon: Icons.copy_rounded,
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );

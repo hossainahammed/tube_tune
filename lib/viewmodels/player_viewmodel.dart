@@ -257,6 +257,12 @@ class PlayerViewModel with ChangeNotifier {
   Future<void> _initVideoPlayer(VideoModel video) async {
     final cleanId = cleanYoutubeId(video.id);
 
+    // On Flutter Web, use official YouTube Iframe player directly to bypass browser CORS & googlevideo restrictions
+    if (kIsWeb) {
+      _initIframeFallback(cleanId);
+      return;
+    }
+
     // 1. Check if the video is already downloaded locally for instant offline playback!
     final localPath = DownloadService.instance.getLocalFilePath(cleanId) ??
         DownloadService.instance.getLocalFilePath(video.id);
@@ -337,11 +343,13 @@ class PlayerViewModel with ChangeNotifier {
           enableCaption: true,
           playsInline: true,
           strictRelatedVideos: false,
+          mute: false,
         ),
       );
     } catch (_) {}
     _isNativeVideoReady = false;
     _isLoadingStream = false;
+    _isPlaying = true;
     notifyListeners();
   }
 

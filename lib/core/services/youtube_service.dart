@@ -1958,7 +1958,7 @@ class YoutubeService {
       ),
       // 8a. Somoy TV 1:00 PM News Bulletin
       const VideoModel(
-        id: '9hHw8iP4jKc',
+        id: 'gCNeDWCI0wo',
         title: 'Somoy TV 1:00 PM News Bulletin | সময় সংবাদ দুপুর ১টা | আজকের শীর্ষ খবর',
         author: 'SOMOY TV',
         channelId: 'ch_somoy_tv',
@@ -1974,7 +1974,7 @@ class YoutubeService {
       ),
       // 8b. Jamuna TV 2:00 PM Shongbad Bulletin
       const VideoModel(
-        id: '3GZ2o6-qXmY',
+        id: 'L_LUpnjgPso',
         title: 'Jamuna TV 2:00 PM News Bulletin | যমুনা টিভি দুপুর ২টার প্রধান সংবাদ',
         author: 'Jamuna TV',
         channelId: 'ch_jamuna_tv',
@@ -1990,7 +1990,7 @@ class YoutubeService {
       ),
       // 8c. Channel 24 Hourly Shongbad Update
       const VideoModel(
-        id: '7mN2pK5vQ8x',
+        id: 'TIYqx_KVEpY',
         title: 'Channel 24 Shongbad 12:00 PM | চ্যানেল ২৪ মধ্যাহ্ন সংবাদ বুলেটিন',
         author: 'Channel 24',
         channelId: 'ch_channel24',
@@ -2006,7 +2006,7 @@ class YoutubeService {
       ),
       // 8d. Independent TV Prime Time Bulletin
       const VideoModel(
-        id: '6bN4vK2pQ9x',
+        id: 'PtztZQi5hCg',
         title: 'Independent TV Prime News Bulletin | ইনডিপেনডেন্ট টিভি প্রধান সংবাদ',
         author: 'Independent Television',
         channelId: 'ch_independent_tv',
@@ -2022,7 +2022,7 @@ class YoutubeService {
       ),
       // 8e. Ekattor TV 71 Journal
       const VideoModel(
-        id: '4yL9vM2kP1z',
+        id: 'M8Rqad6_uN8',
         title: 'Ekattor TV 71 Journal | একাত্তর জার্নাল আজকের বিশেষ সংবাদ পর্যালোচনা',
         author: 'Ekattor TV',
         channelId: 'ch_ekattor_tv',
@@ -2038,7 +2038,7 @@ class YoutubeService {
       ),
       // 8f. DBC News Hourly Bulletin
       const VideoModel(
-        id: '3mN2pK5vQ1x',
+        id: 'FsV_tzCDzic',
         title: 'DBC News Shongbad Bulletin | ডিবিসি নিউজ ঘণ্টায় ঘণ্টায় তাজা খবর',
         author: 'DBC NEWS',
         channelId: 'ch_dbc_news',
@@ -2054,7 +2054,7 @@ class YoutubeService {
       ),
       // 8g. BBC News at One Global Bulletin
       const VideoModel(
-        id: '2vL9vM2kP4x',
+        id: '7Pq-S557XQU',
         title: 'BBC News at One | Global World News Bulletin & Headlines Today',
         author: 'BBC News',
         channelId: 'ch_bbc_official',
@@ -2070,7 +2070,7 @@ class YoutubeService {
       ),
       // 8h. Al Jazeera Newshour Today
       const VideoModel(
-        id: '8mN2pK5vQ4x',
+        id: 'bNyUyrR0PHo',
         title: 'Al Jazeera Newshour | In-Depth Global News & Geopolitics Report',
         author: 'Al Jazeera English',
         channelId: 'ch_aljazeera',
@@ -2086,7 +2086,7 @@ class YoutubeService {
       ),
       // 8i. CNN Newsroom Hourly Update
       const VideoModel(
-        id: '6mN2pK5vQ1x',
+        id: '_vUUs5rrRAs',
         title: 'CNN Newsroom with Max Foster | Global Hourly News Briefing',
         author: 'CNN International',
         channelId: 'ch_cnn_intl',
@@ -2102,7 +2102,7 @@ class YoutubeService {
       ),
       // 8j. Reuters World News Briefing
       const VideoModel(
-        id: '1bN4vK2pL8x',
+        id: '0e3GPea1Tyg',
         title: 'Reuters World News Briefing Today | Top Global Headlines & Markets',
         author: 'Reuters',
         channelId: 'ch_reuters',
@@ -2118,7 +2118,7 @@ class YoutubeService {
       ),
       // 8k. DW News Today Europe & World
       const VideoModel(
-        id: '8bN2pK5vQ1y',
+        id: 'fNk_zzaMoSs',
         title: 'DW News Today | European & World Hourly Bulletin and Analysis',
         author: 'DW News',
         channelId: 'ch_dw_news',
@@ -2134,7 +2134,7 @@ class YoutubeService {
       ),
       // 8l. Sky News Today Hourly Update
       const VideoModel(
-        id: '5yL2mP4vK8z',
+        id: 'q1x_fVpE_Q8',
         title: 'Sky News Today | UK & Global Hourly News Bulletin',
         author: 'Sky News',
         channelId: 'ch_sky_news',
@@ -2150,7 +2150,7 @@ class YoutubeService {
       ),
       // 8m. News24 Bangladesh Shongbad
       const VideoModel(
-        id: '6yL2mP4vK8x',
+        id: '21X5lGlDOfg',
         title: 'News24 Bangladesh Shongbad | নিউজ ২৪ জাতীয় সংবাদ পর্যালোচনা',
         author: 'News24',
         channelId: 'ch_news24_bd',
@@ -2166,7 +2166,7 @@ class YoutubeService {
       ),
       // 8n. BTV National News Bulletin 2:00 PM
       const VideoModel(
-        id: '4bN2pK5vQ8x',
+        id: '8jPQjjsBbIc',
         title: 'BTV National News Bulletin 2:00 PM | বিটিভি জাতীয় সংবাদ দুপুর ২টা',
         author: 'BTV News',
         channelId: 'ch_btv_news',

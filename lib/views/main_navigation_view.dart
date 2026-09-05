@@ -11,6 +11,8 @@ import 'home/home_view.dart';
 import 'library/library_view.dart';
 import 'lock/lock_screen_view.dart';
 import 'player/player_view.dart';
+import 'settings/settings_view.dart';
+import 'shared/custom_app_bar.dart';
 import 'shorts/shorts_view.dart';
 import 'subscriptions/subscriptions_view.dart';
 
@@ -117,63 +119,201 @@ class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBin
       _currentIndex = _currentIndex.clamp(0, pages.length - 1);
     }
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(index: _currentIndex, children: pages),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 800;
 
-          // Floating Mini Player Bar (identical to YouTube mobile)
-          if (playerVm.isMiniPlayerVisible &&
-              playerVm.currentVideo != null &&
-              (!enableShorts || _currentIndex != 1))
-            Positioned(
-              left: 8,
-              right: 8,
-              bottom: 8,
-              child: _buildMiniPlayer(context, playerVm),
+        final mainContent = Stack(
+          children: [
+            IndexedStack(index: _currentIndex, children: pages),
+
+            // Floating Mini Player Bar
+            if (playerVm.isMiniPlayerVisible &&
+                playerVm.currentVideo != null &&
+                (!enableShorts || _currentIndex != 1))
+              Positioned(
+                left: 16,
+                right: isDesktop ? 24 : 16,
+                bottom: isDesktop ? 16 : 8,
+                child: _buildMiniPlayer(context, playerVm),
+              ),
+          ],
+        );
+
+        if (isDesktop) {
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            // Full-width YouTube Top App Bar across the entire screen
+            appBar: const CustomAppBar(),
+            body: Row(
+              children: [
+                // YouTube Desktop Left Navigation Sidebar (sits directly underneath the top bar)
+                Container(
+                  width: 220,
+                  decoration: const BoxDecoration(
+                    color: AppColors.background,
+                    border: Border(
+                      right: BorderSide(color: AppColors.surfaceLight, width: 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+
+                      // Sidebar Navigation Items (YouTube Web styling)
+                      _buildSidebarItem(
+                        icon: Icons.home_outlined,
+                        activeIcon: Icons.home_filled,
+                        label: 'Home',
+                        isSelected: _currentIndex == 0,
+                        onTap: () => setState(() => _currentIndex = 0),
+                      ),
+                      if (enableShorts)
+                        _buildSidebarItem(
+                          icon: Icons.bolt_outlined,
+                          activeIcon: Icons.bolt,
+                          label: 'Shorts',
+                          isSelected: _currentIndex == 1,
+                          onTap: () {
+                            context.read<PlayerViewModel>().pauseVideo();
+                            setState(() => _currentIndex = 1);
+                          },
+                        ),
+                      _buildSidebarItem(
+                        icon: Icons.subscriptions_outlined,
+                        activeIcon: Icons.subscriptions,
+                        label: 'Subscriptions',
+                        isSelected: _currentIndex == (enableShorts ? 2 : 1),
+                        onTap: () => setState(() => _currentIndex = enableShorts ? 2 : 1),
+                      ),
+                      _buildSidebarItem(
+                        icon: Icons.video_library_outlined,
+                        activeIcon: Icons.video_library,
+                        label: 'You',
+                        isSelected: _currentIndex == (enableShorts ? 3 : 2),
+                        onTap: () => setState(() => _currentIndex = enableShorts ? 3 : 2),
+                      ),
+
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        child: Divider(color: AppColors.surfaceLight, height: 1),
+                      ),
+
+                      _buildSidebarItem(
+                        icon: Icons.settings_outlined,
+                        activeIcon: Icons.settings,
+                        label: 'Settings',
+                        isSelected: false,
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsView()),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Main Content Area
+                Expanded(child: mainContent),
+              ],
             ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          if (_currentIndex != index) {
-            // When switching to Shorts, pause main player to avoid dual audio
-            if (index == 1) {
-              context.read<PlayerViewModel>().pauseVideo();
-            }
-            setState(() => _currentIndex = index);
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: AppColors.background,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: const Color(0xFFAAAAAA),
-        selectedFontSize: 10,
-        unselectedFontSize: 10,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_filled),
-            label: 'Home',
+          );
+        }
+
+        // Mobile Layout with Top App Bar and Bottom Navigation Bar
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: (enableShorts && _currentIndex == 1)
+              ? null
+              : (_currentIndex == (enableShorts ? 3 : 2)
+                  ? null
+                  : const CustomAppBar()),
+          body: mainContent,
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              if (_currentIndex != index) {
+                if (index == 1 && enableShorts) {
+                  context.read<PlayerViewModel>().pauseVideo();
+                }
+                setState(() => _currentIndex = index);
+              }
+            },
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: AppColors.background,
+            selectedItemColor: Colors.white,
+            unselectedItemColor: const Color(0xFFAAAAAA),
+            selectedFontSize: 10,
+            unselectedFontSize: 10,
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_filled),
+                label: 'Home',
+              ),
+              if (enableShorts)
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.bolt_outlined),
+                  activeIcon: Icon(Icons.bolt),
+                  label: 'Shorts',
+                ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.subscriptions_outlined),
+                activeIcon: Icon(Icons.subscriptions),
+                label: 'Subscriptions',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.account_circle_outlined),
+                activeIcon: Icon(Icons.account_circle),
+                label: 'You',
+              ),
+            ],
           ),
-          if (enableShorts)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.bolt_outlined),
-              activeIcon: Icon(Icons.bolt),
-              label: 'Shorts',
+        );
+      },
+    );
+  }
+
+  Widget _buildSidebarItem({
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.surfaceElevated : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? activeIcon : icon,
+              color: isSelected ? Colors.white : const Color(0xFFAAAAAA),
+              size: 22,
             ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.subscriptions_outlined),
-            activeIcon: Icon(Icons.subscriptions),
-            label: 'Subscriptions',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_outlined),
-            activeIcon: Icon(Icons.account_circle),
-            label: 'You',
-          ),
-        ],
+            const SizedBox(width: 18),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFFAAAAAA),
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

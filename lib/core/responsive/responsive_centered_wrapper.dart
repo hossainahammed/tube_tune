@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'app_breakpoints.dart';
-import 'responsive_builder.dart';
 
-/// Wraps UI in a centered, max-width constrained container for Tablets, Desktop, and Web.
+/// Provides a clean root wrapper for responsive layouts across Mobile, Tablet, Desktop, and Web.
 class ResponsiveCenteredWrapper extends StatelessWidget {
   final Widget child;
 
@@ -10,23 +8,6 @@ class ResponsiveCenteredWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black,
-      child: ResponsiveBuilder(
-        mobile: child,
-        tablet: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: AppBreakpoints.tablet),
-            child: ClipRect(child: child),
-          ),
-        ),
-        desktop: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: ClipRect(child: child),
-          ),
-        ),
-      ),
-    );
+    return child;
   }
 }

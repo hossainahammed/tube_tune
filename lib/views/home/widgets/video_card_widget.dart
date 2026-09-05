@@ -11,11 +11,12 @@ import '../../player/player_view.dart';
 import '../../shared/app_snackbar.dart';
 import '../../shared/channel_avatar_widget.dart';
 
-/// Full-width video card widget matching official YouTube mobile interface.
+/// Full-width or Grid video card widget matching official YouTube interface.
 class VideoCardWidget extends StatelessWidget {
   final VideoModel video;
+  final bool isGrid;
 
-  const VideoCardWidget({super.key, required this.video});
+  const VideoCardWidget({super.key, required this.video, this.isGrid = false});
 
   @override
   Widget build(BuildContext context) {
@@ -28,26 +29,38 @@ class VideoCardWidget extends StatelessWidget {
           ),
         );
       },
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.only(bottom: isGrid ? 0 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. YouTube 16:9 Thumbnail with Duration Pill
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CachedNetworkImage(
-                    imageUrl: video.thumbnailUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: AppColors.surfaceElevated),
-                    errorWidget: (context, url, error) => Container(
-                      color: AppColors.surfaceElevated,
-                      child: const Icon(Icons.play_circle_outline, size: 48, color: AppColors.textMuted),
-                    ),
-                  ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(isGrid ? 12 : 0),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    kIsWeb
+                        ? Image.network(
+                            video.thumbnailUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Icon(Icons.play_circle_outline, size: 48, color: AppColors.textMuted),
+                            ),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: video.thumbnailUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(color: AppColors.surfaceElevated),
+                            errorWidget: (context, url, error) => Container(
+                              color: AppColors.surfaceElevated,
+                              child: const Icon(Icons.play_circle_outline, size: 48, color: AppColors.textMuted),
+                            ),
+                          ),
 
                   // Duration Pill / LIVE Badge (Bottom Right)
                   Positioned(
@@ -86,21 +99,22 @@ class VideoCardWidget extends StatelessWidget {
                 ],
               ),
             ),
+          ),
 
-            // 2. Video Metadata Row (Avatar, Title, Channel, Stats, 3-dots Menu)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 4, 4),
+          // 2. Video Metadata Row (Avatar, Title, Channel, Stats, 3-dots Menu)
+          Padding(
+              padding: EdgeInsets.fromLTRB(isGrid ? 0 : 12, 8, isGrid ? 0 : 8, 2),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Channel Avatar (36x36 circular)
+                  // Channel Avatar (34x34 circular)
                   ChannelAvatarWidget(
                     author: video.author,
                     avatarUrl: video.channelAvatarUrl,
                     channelId: video.channelId,
-                    radius: 18,
+                    radius: 17,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
 
                   // Title & Channel Subtitle Info
                   Expanded(
@@ -112,16 +126,16 @@ class VideoCardWidget extends StatelessWidget {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w500,
                             color: Colors.white,
-                            height: 1.3,
+                            height: 1.25,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           (video.isLive || video.uploadDate.toLowerCase().contains('live'))
-                              ? '${video.author} • 🔴 ${video.viewCountFormatted} watching now'
+                              ? '${video.author} • 🔴 ${video.viewCountFormatted} watching'
                               : '${video.author} • ${video.viewCountFormatted} • ${video.uploadDate}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -141,7 +155,10 @@ class VideoCardWidget extends StatelessWidget {
 
                   // 3-Dots Action Menu (Opens authentic YouTube Bottom Sheet)
                   IconButton(
-                    icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFFAAAAAA)),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(2),
+                    constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                    icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFFAAAAAA)),
                     onPressed: () => _showVideoOptionsBottomSheet(context),
                   ),
                 ],

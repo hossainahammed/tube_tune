@@ -9,7 +9,6 @@ import '../../viewmodels/subscriptions_viewmodel.dart';
 import '../home/widgets/video_card_widget.dart';
 import '../shared/app_snackbar.dart';
 import '../shared/channel_avatar_widget.dart';
-import '../shared/custom_app_bar.dart';
 import '../shared/timer_status_bar.dart';
 
 /// Subscriptions Screen identical to official YouTube mobile with channel avatar row,
@@ -52,7 +51,7 @@ class _SubscriptionsViewState extends State<SubscriptionsView> {
     final filteredVideos = subVm.filteredVideos;
 
     return Scaffold(
-      appBar: const CustomAppBar(),
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           const TimerStatusBar(),
@@ -377,29 +376,82 @@ class _SubscriptionsViewState extends State<SubscriptionsView> {
       );
     }
 
-    // 3. Videos Feed
-    return ListView.builder(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: videos.length + (subVm.isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (subVm.isLoadingMore && index == videos.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.youtubeRed,
+    // 3. Videos Feed (Responsive Grid on wide screens)
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth >= 700;
+        final columns = constraints.maxWidth >= 1300
+            ? 4
+            : (constraints.maxWidth >= 950 ? 3 : 2);
+
+        if (isWide) {
+          final itemWidth = (constraints.maxWidth - (columns - 1) * 16 - 24) / columns;
+          final itemHeight = itemWidth * 9 / 16 + 115;
+          final ratio = itemWidth / itemHeight;
+
+          return CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 20,
+                    childAspectRatio: ratio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => VideoCardWidget(video: videos[index], isGrid: true),
+                    childCount: videos.length,
+                  ),
                 ),
               ),
-            ),
+              if (subVm.isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.youtubeRed,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         }
-        final video = videos[index];
-        return VideoCardWidget(video: video);
+
+        return ListView.builder(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          itemCount: videos.length + (subVm.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (subVm.isLoadingMore && index == videos.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColors.youtubeRed,
+                    ),
+                  ),
+                ),
+              );
+            }
+            final video = videos[index];
+            return VideoCardWidget(video: video);
+          },
+        );
       },
     );
   }

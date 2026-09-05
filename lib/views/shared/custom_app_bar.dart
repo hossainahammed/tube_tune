@@ -21,42 +21,92 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final authVm = context.watch<AuthViewModel>();
     final user = authVm.currentUser;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWide = screenWidth >= 700;
+    final searchWidth = (screenWidth * 0.38).clamp(320.0, 560.0);
 
     return AppBar(
-      titleSpacing: 12,
+      titleSpacing: isWide ? 16 : 12,
       elevation: 0,
       backgroundColor: AppColors.background,
-      title: SizedBox(
-        height: 36,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // TubeTune Official Protected Shield App Icon
-              Image.asset(
-                'assets/icons/app_icon.png',
-                width: 28,
-                height: 28,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(width: 6),
+      title: Row(
+        children: [
+          // Left: Hamburger Menu Icon on desktop + TubeTune Logo & Brand Name
+          if (isWide) ...[
+            const Icon(Icons.menu, color: Colors.white, size: 24),
+            const SizedBox(width: 16),
+          ],
+          SizedBox(
+            height: 36,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/icons/app_icon.png',
+                  width: 28,
+                  height: 28,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  'TubeTune',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                    color: Colors.white,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-              // "TubeTune" Brand Text
-              const Text(
-                'TubeTune',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
-                  color: Colors.white,
-                  fontFamily: 'Roboto',
+          // YouTube Web Center Search Bar (on wide screens)
+          if (isWide) ...[
+            const Spacer(),
+            InkWell(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SearchView()),
+                );
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: searchWidth,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF121212),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF303030), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Text(
+                        'Search videos, waz, news, kids...',
+                        style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      width: 54,
+                      height: 38,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF222222),
+                        borderRadius: BorderRadius.horizontal(right: Radius.circular(20)),
+                      ),
+                      child: const Icon(Icons.search, size: 20, color: Colors.white),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
+            ),
+            const Spacer(),
+          ],
+        ],
       ),
       actions: [
         // Cast Icon (Authentic YouTube Connect to a Device)
@@ -127,19 +177,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           },
         ),
 
-        // Search Icon (Authentic YouTube)
-        IconButton(
-          visualDensity: VisualDensity.compact,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          padding: const EdgeInsets.all(6),
-          icon: const Icon(Icons.search_outlined, size: 22, color: Colors.white),
-          tooltip: 'Search',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SearchView()),
-            );
-          },
-        ),
+        // Search Icon (on mobile screens)
+        if (!isWide)
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            padding: const EdgeInsets.all(6),
+            icon: const Icon(Icons.search_outlined, size: 22, color: Colors.white),
+            tooltip: 'Search',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SearchView()),
+              );
+            },
+          ),
 
         // User Profile Avatar (Tapping opens Account & TubeTune Settings)
         InkWell(

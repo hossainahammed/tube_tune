@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/youtube_service.dart';
@@ -143,21 +144,38 @@ class _ChannelAvatarWidgetState extends State<ChannelAvatarWidget> {
           shape: BoxShape.circle,
         ),
         clipBehavior: Clip.antiAlias,
-        child: CachedNetworkImage(
-          imageUrl: _effectiveAvatarUrl,
-          width: widget.radius * 2,
-          height: widget.radius * 2,
-          fit: BoxFit.cover,
-          errorListener: (_) {},
-          placeholder: (context, url) => _buildChannelIcon(),
-          errorWidget: (context, url, error) {
-            // Trigger dynamic fetch on network failure
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _fetchAvatarDynamically();
-            });
-            return _buildChannelIcon();
-          },
-        ),
+        child: kIsWeb
+            ? Image.network(
+                _effectiveAvatarUrl,
+                width: widget.radius * 2,
+                height: widget.radius * 2,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _fetchAvatarDynamically();
+                  });
+                  return _buildChannelIcon();
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return _buildChannelIcon();
+                },
+              )
+            : CachedNetworkImage(
+                imageUrl: _effectiveAvatarUrl,
+                width: widget.radius * 2,
+                height: widget.radius * 2,
+                fit: BoxFit.cover,
+                errorListener: (_) {},
+                placeholder: (context, url) => _buildChannelIcon(),
+                errorWidget: (context, url, error) {
+                  // Trigger dynamic fetch on network failure
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _fetchAvatarDynamically();
+                  });
+                  return _buildChannelIcon();
+                },
+              ),
       );
     }
 
