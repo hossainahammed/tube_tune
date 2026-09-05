@@ -176,8 +176,23 @@ class FilterService {
     required bool strictCategoryMode,
     required List<CategoryModel> enabledCategories,
     required List<String> customBlacklist,
+    List<String> hiddenVideoIds = const [],
+    List<String> blockedChannels = const [],
     String? currentSelectedCategoryId,
   }) {
+    // 0. Hidden video IDs & Blocked channels ("Not interested" / "Don't recommend channel")
+    if (hiddenVideoIds.contains(video.id)) {
+      return false;
+    }
+    final lowerAuthor = video.author.toLowerCase().trim();
+    final lowerChannelId = video.channelId.toLowerCase().trim();
+    for (final b in blockedChannels) {
+      final clean = b.toLowerCase().trim();
+      if (clean.isNotEmpty && (lowerAuthor == clean || lowerAuthor.contains(clean) || lowerChannelId == clean)) {
+        return false;
+      }
+    }
+
     // 1. Reels / Shorts switch check
     if (video.isShort && !enableShorts) {
       return false; // Shorts globally disabled
@@ -268,6 +283,8 @@ class FilterService {
     required bool strictCategoryMode,
     required List<CategoryModel> enabledCategories,
     required List<String> customBlacklist,
+    List<String> hiddenVideoIds = const [],
+    List<String> blockedChannels = const [],
     String? currentSelectedCategoryId,
   }) {
     final List<VideoModel> allowed = [];
@@ -276,6 +293,28 @@ class FilterService {
     int shortsCount = 0;
 
     for (final v in videos) {
+      // Check hidden video IDs ("Not interested")
+      if (hiddenVideoIds.contains(v.id)) {
+        filteredCount++;
+        continue;
+      }
+
+      // Check blocked channels ("Don't recommend channel")
+      final lowerAuthor = v.author.toLowerCase().trim();
+      final lowerChannelId = v.channelId.toLowerCase().trim();
+      bool isBlocked = false;
+      for (final b in blockedChannels) {
+        final clean = b.toLowerCase().trim();
+        if (clean.isNotEmpty && (lowerAuthor == clean || lowerAuthor.contains(clean) || lowerChannelId == clean)) {
+          isBlocked = true;
+          break;
+        }
+      }
+      if (isBlocked) {
+        filteredCount++;
+        continue;
+      }
+
       if (v.isShort && !enableShorts) {
         shortsCount++;
         filteredCount++;
@@ -300,6 +339,8 @@ class FilterService {
         strictCategoryMode: strictCategoryMode,
         enabledCategories: enabledCategories,
         customBlacklist: customBlacklist,
+        hiddenVideoIds: hiddenVideoIds,
+        blockedChannels: blockedChannels,
         currentSelectedCategoryId: currentSelectedCategoryId,
       );
 

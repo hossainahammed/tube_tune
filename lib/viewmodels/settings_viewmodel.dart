@@ -20,6 +20,8 @@ class SettingsViewModel with ChangeNotifier {
   String _selectedFocusMode = 'all';
   List<CategoryModel> _categories = [];
   List<String> _customBlacklist = [];
+  List<String> _hiddenVideoIds = [];
+  List<String> _blockedChannels = [];
 
   int _totalVideosFiltered = 0;
   int _total18PlusBlocked = 0;
@@ -44,6 +46,8 @@ class SettingsViewModel with ChangeNotifier {
   List<CategoryModel> get categories => List.unmodifiable(_categories);
   List<CategoryModel> get enabledCategories => _categories.where((c) => c.isEnabled).toList();
   List<String> get customBlacklist => List.unmodifiable(_customBlacklist);
+  List<String> get hiddenVideoIds => List.unmodifiable(_hiddenVideoIds);
+  List<String> get blockedChannels => List.unmodifiable(_blockedChannels);
 
   int get totalVideosFiltered => _totalVideosFiltered;
   int get total18PlusBlocked => _total18PlusBlocked;
@@ -58,6 +62,8 @@ class SettingsViewModel with ChangeNotifier {
     _strictCategoryMode = storage.getStrictCategoryMode();
     _selectedFocusMode = storage.getSelectedFocusMode();
     _customBlacklist = storage.getCustomBlacklist();
+    _hiddenVideoIds = storage.getHiddenVideoIds();
+    _blockedChannels = storage.getBlockedChannels();
 
     _totalVideosFiltered = storage.getStatsVideosFiltered();
     _total18PlusBlocked = storage.getStats18PlusBlocked();
@@ -174,6 +180,43 @@ class SettingsViewModel with ChangeNotifier {
   Future<void> removeBlacklistKeyword(String keyword) async {
     _customBlacklist = _customBlacklist.where((k) => k != keyword).toList();
     await storage.setCustomBlacklist(_customBlacklist);
+    notifyListeners();
+  }
+
+  // --- Hidden Videos & Blocked Channels (Not Interested / Don't Recommend) ---
+
+  Future<void> addHiddenVideoId(String videoId) async {
+    final cleanId = videoId.trim();
+    if (cleanId.isEmpty) return;
+    if (!_hiddenVideoIds.contains(cleanId)) {
+      _hiddenVideoIds = [..._hiddenVideoIds, cleanId];
+      await storage.addHiddenVideoId(cleanId);
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeHiddenVideoId(String videoId) async {
+    final cleanId = videoId.trim();
+    _hiddenVideoIds = _hiddenVideoIds.where((id) => id != cleanId).toList();
+    await storage.removeHiddenVideoId(cleanId);
+    notifyListeners();
+  }
+
+  Future<void> addBlockedChannel(String channel) async {
+    final cleanChannel = channel.trim();
+    if (cleanChannel.isEmpty) return;
+    final normalized = cleanChannel.toLowerCase();
+    if (!_blockedChannels.any((c) => c.toLowerCase() == normalized)) {
+      _blockedChannels = [..._blockedChannels, cleanChannel];
+      await storage.addBlockedChannel(cleanChannel);
+      notifyListeners();
+    }
+  }
+
+  Future<void> removeBlockedChannel(String channel) async {
+    final normalized = channel.trim().toLowerCase();
+    _blockedChannels = _blockedChannels.where((c) => c.toLowerCase() != normalized).toList();
+    await storage.removeBlockedChannel(channel);
     notifyListeners();
   }
 

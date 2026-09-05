@@ -46,26 +46,34 @@ class _HomeViewState extends State<HomeView> {
     final homeVm = context.watch<HomeViewModel>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: const CustomAppBar(),
-      body: Column(
-        children: [
-          // Screen Time Lock Status Banner (if active)
-          const TimerStatusBar(),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxHeight < 80) {
+            return const SizedBox.shrink();
+          }
+          return Column(
+            children: [
+              // Screen Time Lock Status Banner (if active)
+              const TimerStatusBar(),
 
-          // Category Whitelist Chips
-          const CategoryChipsWidget(),
+              // Category Whitelist Chips
+              const CategoryChipsWidget(),
 
-          const Divider(color: AppColors.surfaceLight, height: 1),
+              const Divider(color: AppColors.surfaceLight, height: 1),
 
-          // Feed Content
-          Expanded(
-            child: RefreshIndicator(
-              color: AppColors.youtubeRed,
-              onRefresh: () => homeVm.loadFeed(isRefresh: true),
-              child: _buildFeedBody(homeVm),
-            ),
-          ),
-        ],
+              // Feed Content
+              Expanded(
+                child: RefreshIndicator(
+                  color: AppColors.youtubeRed,
+                  onRefresh: () => homeVm.loadFeed(isRefresh: true),
+                  child: _buildFeedBody(homeVm),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

@@ -140,18 +140,18 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
     final currentUser = authVm.currentUser;
     final hasSavedAccounts = savedAccounts.isNotEmpty;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        24,
-        16,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 28,
-      ),
-      child: Column(
+    return Material(
+      color: AppColors.surface,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          16,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
+        ),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -464,6 +464,7 @@ class _GoogleSignInDialogState extends State<GoogleSignInDialog> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

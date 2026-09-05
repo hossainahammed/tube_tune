@@ -11,6 +11,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/services/cast_service.dart';
 import '../../core/services/download_service.dart';
 import '../../core/services/pip_service.dart';
+import '../../core/services/subscription_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -38,7 +39,6 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
   Timer? _positionUpdateTimer;
   bool _isControlsLocked = false;
   bool _isDescriptionExpanded = false;
-  bool _isSubscribed = false;
   bool _isDisliked = false;
   bool _isInPip = false;
   bool _isFullScreen = false;
@@ -453,129 +453,144 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                       },
                     ),
                     const Spacer(),
-                    // Autoplay switch pill
-                    GestureDetector(
-                      onTap: () {
-                        playerVm.toggleAutoplay();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: playerVm.isAutoplayEnabled ? Colors.white : Colors.black54,
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.play_arrow, size: 13, color: playerVm.isAutoplayEnabled ? Colors.black : Colors.white70),
-                            const SizedBox(width: 3),
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: playerVm.isAutoplayEnabled ? AppColors.youtubeRed : Colors.white60,
+                            // Autoplay switch pill
+                            GestureDetector(
+                              onTap: () {
+                                playerVm.toggleAutoplay();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: playerVm.isAutoplayEnabled ? Colors.white : Colors.black54,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.play_arrow, size: 13, color: playerVm.isAutoplayEnabled ? Colors.black : Colors.white70),
+                                    const SizedBox(width: 3),
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: playerVm.isAutoplayEnabled ? AppColors.youtubeRed : Colors.white60,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ),
+                            const SizedBox(width: 12),
+                            AnimatedBuilder(
+                              animation: CastService.instance,
+                              builder: (context, _) {
+                                final isConnected = CastService.instance.isConnected;
+                                return IconButton(
+                                  icon: Icon(
+                                    isConnected ? Icons.cast_connected_rounded : Icons.cast,
+                                    color: isConnected ? const Color(0xFF4285F4) : Colors.white,
+                                    size: 20,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => CastBottomSheet.show(context),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 12),
+                            // Captions toggle button
+                            GestureDetector(
+                              onTap: () {
+                                playerVm.toggleCaptions();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: playerVm.showCaptions ? Colors.white : Colors.white60, width: 1.2),
+                                  borderRadius: BorderRadius.circular(3),
+                                  color: playerVm.showCaptions ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
+                                ),
+                                child: Text(
+                                  'CC',
+                                  style: TextStyle(
+                                    color: playerVm.showCaptions ? Colors.white : Colors.white60,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            IconButton(
+                              icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _showSettingsBottomSheet(context),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 14),
-                    AnimatedBuilder(
-                      animation: CastService.instance,
-                      builder: (context, _) {
-                        final isConnected = CastService.instance.isConnected;
-                        return IconButton(
-                          icon: Icon(
-                            isConnected ? Icons.cast_connected_rounded : Icons.cast,
-                            color: isConnected ? const Color(0xFF4285F4) : Colors.white,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () => CastBottomSheet.show(context),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 14),
-                    // Captions toggle button
-                    GestureDetector(
-                      onTap: () {
-                        playerVm.toggleCaptions();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: playerVm.showCaptions ? Colors.white : Colors.white60, width: 1.2),
-                          borderRadius: BorderRadius.circular(3),
-                          color: playerVm.showCaptions ? Colors.white.withValues(alpha: 0.2) : Colors.transparent,
-                        ),
-                        child: Text(
-                          'CC',
-                          style: TextStyle(
-                            color: playerVm.showCaptions ? Colors.white : Colors.white60,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: () => _showSettingsBottomSheet(context),
                     ),
                   ],
                 ),
               ),
 
               // Center Controls: Previous / Replay, Pause/Play, Play Next Video
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.black.withValues(alpha: 0.4),
-                    child: IconButton(
-                      icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
-                      tooltip: 'Replay',
-                      onPressed: () {
-                        _playPrevOrRestart();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 32),
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.black.withValues(alpha: 0.5),
-                    child: IconButton(
-                      iconSize: 36,
-                      icon: Icon(
-                        isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: Colors.white,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.black.withValues(alpha: 0.4),
+                      child: IconButton(
+                        icon: const Icon(Icons.skip_previous, color: Colors.white, size: 24),
+                        tooltip: 'Replay',
+                        onPressed: () {
+                          _playPrevOrRestart();
+                        },
                       ),
-                      onPressed: () {
-                        playerVm.togglePlayPause();
-                        _startHideControlsTimer();
-                      },
                     ),
-                  ),
-                  const SizedBox(width: 32),
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: Colors.black.withValues(alpha: 0.4),
-                    child: IconButton(
-                      icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
-                      tooltip: 'Next video',
-                      onPressed: () {
-                        _playNextVideo();
-                      },
+                    const SizedBox(width: 32),
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.black.withValues(alpha: 0.5),
+                      child: IconButton(
+                        iconSize: 36,
+                        icon: Icon(
+                          isPlaying ? Icons.pause : Icons.play_arrow,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          playerVm.togglePlayPause();
+                          _startHideControlsTimer();
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 32),
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Colors.black.withValues(alpha: 0.4),
+                      child: IconButton(
+                        icon: const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                        tooltip: 'Next video',
+                        onPressed: () {
+                          _playNextVideo();
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               // Bottom Bar: Timestamps, Live indicator, Fullscreen button (Screenshot 1)
@@ -586,14 +601,18 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      widget.video.isLive
-                          ? '🔴 LIVE'
-                          : '${_formatDuration(position)} / ${_formatDuration(duration)}',
-                      style: TextStyle(
-                        color: widget.video.isLive ? AppColors.youtubeRed : Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Text(
+                        widget.video.isLive
+                            ? '🔴 LIVE'
+                            : '${_formatDuration(position)} / ${_formatDuration(duration)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: widget.video.isLive ? AppColors.youtubeRed : Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -758,30 +777,29 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           bottom: false,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              return SizedBox(
-                width: constraints.maxWidth,
-                height: constraints.maxHeight,
-                child: OverflowBox(
-                minWidth: constraints.maxWidth,
-                maxWidth: constraints.maxWidth,
-                minHeight: 0.0,
-                maxHeight: constraints.maxHeight + 2.0,
-                child: Column(
-                  children: [
-                    const TimerStatusBar(),
+              if (constraints.maxHeight <= 0) return const SizedBox.shrink();
+              final playerHeight = (constraints.maxWidth * 9 / 16).clamp(0.0, constraints.maxHeight);
+              final remainingHeight = constraints.maxHeight - playerHeight;
+              final hasRoomForFeed = remainingHeight > 40;
 
-                    // Top Video Player Container (16:9)
-                    AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: _buildVideoPlayerSurface(playerVm),
-                    ),
+              return Column(
+                children: [
+                  const TimerStatusBar(),
 
-                    // Scrollable Video Details & Feed (Expanded inside OverflowBox absorbs subpixel rounding)
+                  // Top Video Player Container (16:9)
+                  SizedBox(
+                    width: constraints.maxWidth,
+                    height: playerHeight,
+                    child: _buildVideoPlayerSurface(playerVm),
+                  ),
+
+                  // Scrollable Video Details & Feed
+                  if (hasRoomForFeed)
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.zero,
@@ -863,6 +881,7 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                         ChannelAvatarWidget(
                           author: widget.video.author,
                           avatarUrl: widget.video.channelAvatarUrl,
+                          channelId: widget.video.channelId,
                           radius: 18,
                         ),
                         const SizedBox(width: 10),
@@ -888,43 +907,50 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                           ),
                         ),
                         // YouTube Subscribe Button
-                        ElevatedButton(
-                          onPressed: () {
-                            setState(() => _isSubscribed = !_isSubscribed);
-                            if (_isSubscribed) {
-                              AppSnackBar.showSuccess(
-                                context,
-                                'Subscribed to ${widget.video.author}',
-                                icon: Icons.subscriptions_rounded,
-                              );
-                            } else {
-                              AppSnackBar.showInfo(
-                                context,
-                                'Subscription removed',
-                                icon: Icons.notifications_off_outlined,
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isSubscribed ? AppColors.surfaceElevated : Colors.white,
-                            foregroundColor: _isSubscribed ? Colors.white : Colors.black,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_isSubscribed) ...[
-                                const Icon(Icons.notifications_active, size: 14, color: Colors.white),
-                                const SizedBox(width: 4),
-                              ],
-                              Text(
-                                _isSubscribed ? 'Subscribed' : 'Subscribe',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        Consumer<SubscriptionService>(
+                          builder: (context, subService, _) {
+                            final isSubscribed = subService.isSubscribed(widget.video.author);
+                            return ElevatedButton(
+                              onPressed: () async {
+                                final nowSubscribed = await subService.toggleSubscriptionFromVideo(widget.video);
+                                if (context.mounted) {
+                                  if (nowSubscribed) {
+                                    AppSnackBar.showSuccess(
+                                      context,
+                                      'Subscribed to ${widget.video.author}',
+                                      icon: Icons.subscriptions_rounded,
+                                    );
+                                  } else {
+                                    AppSnackBar.showInfo(
+                                      context,
+                                      'Subscription removed',
+                                      icon: Icons.notifications_off_outlined,
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isSubscribed ? AppColors.surfaceElevated : Colors.white,
+                                foregroundColor: isSubscribed ? Colors.white : Colors.black,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                               ),
-                            ],
-                          ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSubscribed) ...[
+                                    const Icon(Icons.notifications_active, size: 14, color: Colors.white),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  Text(
+                                    isSubscribed ? 'Subscribed' : 'Subscribe',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1190,19 +1216,16 @@ class _PlayerViewState extends State<PlayerView> with WidgetsBindingObserver {
                     (v) => VideoCardWidget(video: v),
                   ),
 
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  },
-),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _buildActionPill({

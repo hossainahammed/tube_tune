@@ -106,4 +106,42 @@ class VideoModel {
       isLive: json['isLive'] as bool? ?? false,
     );
   }
+
+  VideoModel copyWith({
+    String? id,
+    String? title,
+    String? author,
+    String? channelId,
+    String? channelAvatarUrl,
+    String? thumbnailUrl,
+    Duration? duration,
+    int? viewCount,
+    String? uploadDate,
+    String? description,
+    bool? isShort,
+    bool? isAgeRestricted,
+    String? categoryTag,
+    int? likeCount,
+    List<String>? tags,
+    bool? isLive,
+  }) {
+    return VideoModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      author: author ?? this.author,
+      channelId: channelId ?? this.channelId,
+      channelAvatarUrl: channelAvatarUrl ?? this.channelAvatarUrl,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      duration: duration ?? this.duration,
+      viewCount: viewCount ?? this.viewCount,
+      uploadDate: uploadDate ?? this.uploadDate,
+      description: description ?? this.description,
+      isShort: isShort ?? this.isShort,
+      isAgeRestricted: isAgeRestricted ?? this.isAgeRestricted,
+      categoryTag: categoryTag ?? this.categoryTag,
+      likeCount: likeCount ?? this.likeCount,
+      tags: tags ?? this.tags,
+      isLive: isLive ?? this.isLive,
+    );
+  }
 }

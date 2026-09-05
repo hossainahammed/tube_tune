@@ -138,19 +138,50 @@ class PlayerViewModel with ChangeNotifier {
     // Initialize native video player stream
     await _initVideoPlayer(video);
 
-    // Fetch comments & filtered related videos
+    // Fetch comments & filtered related videos with real channel avatars
     try {
       final userSavedComments = storage.getUserComments(video.id);
       final dynamicComments = await youtubeService.fetchCommentsForVideo(video);
-      final rawRelated = youtubeService.getCuratedVideosByCategory(video.categoryTag);
+
+      // Fetch dynamic related videos directly from YouTube
+      List<VideoModel> dynamicRelated = [];
+      try {
+        dynamicRelated = await youtubeService.fetchRelatedVideos(video);
+      } catch (_) {}
+
+      final rawRelated = dynamicRelated.isNotEmpty
+          ? dynamicRelated
+          : youtubeService
+              .getCuratedVideosByCategory(video.categoryTag)
+              .where((v) => v.id != video.id)
+              .toList();
+
+      // Deduplicate and ensure channel avatars from dynamic cache
+      final seenIds = <String>{video.id};
+      final uniqueRelated = <VideoModel>[];
+      for (final v in rawRelated) {
+        if (!seenIds.contains(v.id)) {
+          seenIds.add(v.id);
+          final resolvedAvatar = v.channelAvatarUrl.isNotEmpty
+              ? v.channelAvatarUrl
+              : YoutubeService.getCachedChannelAvatar(v.author, channelId: v.channelId);
+          uniqueRelated.add(
+            resolvedAvatar.isNotEmpty
+                ? v.copyWith(channelAvatarUrl: resolvedAvatar)
+                : v,
+          );
+        }
+      }
 
       final filterResult = FilterService.instance.filterList(
-        rawRelated.where((v) => v.id != video.id).toList(),
+        uniqueRelated,
         enableShorts: settingsViewModel.enableShorts,
         block18Plus: settingsViewModel.block18Plus,
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
 
       _relatedVideos = filterResult.allowed;
@@ -494,6 +525,17 @@ class PlayerViewModel with ChangeNotifier {
       _watchLater = [video, ..._watchLater];
     }
     await storage.saveWatchLater(_watchLater);
+    notifyListeners();
+  }
+
+  void playNextInQueue(VideoModel video) {
+    _relatedVideos.removeWhere((v) => v.id == video.id);
+    _relatedVideos.insert(0, video);
+    notifyListeners();
+  }
+
+  void hideRelatedVideo(String videoId) {
+    _relatedVideos.removeWhere((v) => v.id == videoId);
     notifyListeners();
   }
 

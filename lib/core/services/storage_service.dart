@@ -34,6 +34,8 @@ class StorageService {
   static const _keySelectedFocusMode = 'selected_focus_mode';
   static const _keyEnabledCategories = 'enabled_categories';
   static const _keyCustomBlacklist = 'custom_blacklist';
+  static const _keyHiddenVideoIds = 'hidden_video_ids';
+  static const _keyBlockedChannels = 'blocked_channels';
   static const _keyTimerState = 'timer_state';
   static const _keyUserData = 'user_data';
   static const _keyWatchHistory = 'watch_history';
@@ -76,6 +78,44 @@ class StorageService {
 
   Future<bool> setCustomBlacklist(List<String> blacklist) async {
     return _prefs?.setStringList(_keyCustomBlacklist, blacklist) ?? false;
+  }
+
+  List<String> getHiddenVideoIds() {
+    return _prefs?.getStringList(_keyHiddenVideoIds) ?? [];
+  }
+
+  Future<bool> addHiddenVideoId(String videoId) async {
+    final list = List<String>.from(getHiddenVideoIds());
+    if (!list.contains(videoId)) {
+      list.add(videoId);
+      return _prefs?.setStringList(_keyHiddenVideoIds, list) ?? false;
+    }
+    return true;
+  }
+
+  Future<bool> removeHiddenVideoId(String videoId) async {
+    final list = List<String>.from(getHiddenVideoIds())..remove(videoId);
+    return _prefs?.setStringList(_keyHiddenVideoIds, list) ?? false;
+  }
+
+  List<String> getBlockedChannels() {
+    return _prefs?.getStringList(_keyBlockedChannels) ?? [];
+  }
+
+  Future<bool> addBlockedChannel(String channelOrAuthor) async {
+    final list = List<String>.from(getBlockedChannels());
+    final clean = channelOrAuthor.toLowerCase().trim();
+    if (clean.isNotEmpty && !list.contains(clean)) {
+      list.add(clean);
+      return _prefs?.setStringList(_keyBlockedChannels, list) ?? false;
+    }
+    return true;
+  }
+
+  Future<bool> removeBlockedChannel(String channelOrAuthor) async {
+    final clean = channelOrAuthor.toLowerCase().trim();
+    final list = List<String>.from(getBlockedChannels())..remove(clean);
+    return _prefs?.setStringList(_keyBlockedChannels, list) ?? false;
   }
 
   // --- Google / User Account Persistence ---
@@ -260,4 +300,9 @@ class StorageService {
     final list = videos.map((v) => jsonEncode(v.toJson())).toList();
     await _prefs?.setStringList(_keyDownloadedVideos, list);
   }
+
+  // --- General Key-Value StringList Helpers ---
+  List<String>? getStringList(String key) => _prefs?.getStringList(key);
+  Future<bool> setStringList(String key, List<String> value) async =>
+      _prefs?.setStringList(key, value) ?? false;
 }

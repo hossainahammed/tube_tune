@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/download_service.dart';
 import '../../../models/video_model.dart';
+import '../../../viewmodels/home_viewmodel.dart';
 import '../../../viewmodels/player_viewmodel.dart';
 import '../../player/player_view.dart';
 import '../../shared/app_snackbar.dart';
@@ -96,6 +97,7 @@ class VideoCardWidget extends StatelessWidget {
                   ChannelAvatarWidget(
                     author: video.author,
                     avatarUrl: video.channelAvatarUrl,
+                    channelId: video.channelId,
                     radius: 18,
                   ),
                   const SizedBox(width: 12),
@@ -173,7 +175,20 @@ class VideoCardWidget extends StatelessWidget {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.watch_later_outlined, color: Colors.white),
+                leading: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 24),
+                title: const Text('Play next in queue', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<PlayerViewModel>().playNextInQueue(video);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Added to queue',
+                    icon: Icons.playlist_play_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.watch_later_outlined, color: Colors.white, size: 22),
                 title: const Text('Save to Watch Later', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -186,7 +201,7 @@ class VideoCardWidget extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.playlist_add, color: Colors.white),
+                leading: const Icon(Icons.playlist_add_rounded, color: Colors.white, size: 24),
                 title: const Text('Save to playlist', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -205,6 +220,7 @@ class VideoCardWidget extends StatelessWidget {
                   color: DownloadService.instance.isDownloaded(video.id)
                       ? const Color(0xFF3EA6FF)
                       : Colors.white,
+                  size: 22,
                 ),
                 title: Text(
                   DownloadService.instance.isDownloaded(video.id)
@@ -253,7 +269,7 @@ class VideoCardWidget extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.share_outlined, color: Colors.white),
+                leading: const Icon(Icons.share_outlined, color: Colors.white, size: 22),
                 title: const Text('Share', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -265,10 +281,49 @@ class VideoCardWidget extends StatelessWidget {
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.not_interested, color: Colors.white),
+                leading: const Icon(Icons.do_not_disturb_on_outlined, color: Colors.white, size: 22),
                 title: const Text('Not interested', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(ctx);
+                  context.read<HomeViewModel>().markVideoNotInterested(video);
+                  context.read<PlayerViewModel>().hideRelatedVideo(video.id);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Video removed. We won\'t recommend it again.',
+                    icon: Icons.check_circle_outline_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.remove_circle_outline_rounded, color: Colors.white, size: 22),
+                title: Text(
+                  'Don\'t recommend channel',
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+                subtitle: Text(
+                  video.author,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.read<HomeViewModel>().blockChannel(video.author, channelId: video.channelId);
+                  AppSnackBar.showSuccess(
+                    context,
+                    'We won\'t recommend videos from "${video.author}" again.',
+                    icon: Icons.block_rounded,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.flag_outlined, color: Colors.white, size: 22),
+                title: const Text('Report', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  AppSnackBar.showInfo(
+                    context,
+                    'Thank you for reporting. Our team will review.',
+                    icon: Icons.flag_rounded,
+                  );
                 },
               ),
             ],

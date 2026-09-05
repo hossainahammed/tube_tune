@@ -147,6 +147,10 @@ class YoutubeService {
                 }
               }
 
+              if (channelAvatar.isNotEmpty) {
+                cacheChannelAvatar(author, channelAvatar, channelId: channelId);
+              }
+
               final duration = _parseDuration(durationText);
               final viewCount = _parseViews(viewCountText);
 
@@ -343,7 +347,8 @@ class YoutubeService {
     }
   }
 
-  /// Fetch videos specifically tailored to active category from real YouTube search
+  int _refreshCounter = 0;
+
   /// Fetch videos specifically tailored to active category from real YouTube search
   Future<List<VideoModel>> fetchFeedForCategories({
     required String currentCategoryId,
@@ -351,6 +356,9 @@ class YoutubeService {
     bool allow18Plus = false,
     bool isRefresh = false,
   }) async {
+    if (isRefresh) {
+      _refreshCounter++;
+    }
     final List<VideoModel> rawResults = [];
 
     if (currentCategoryId == AppCategories.categoryAll ||
@@ -361,22 +369,33 @@ class YoutubeService {
           : (now.hour < 17 ? 'midday' : (now.hour < 21 ? 'evening' : 'night'));
 
       if (allow18Plus) {
-        // UNRESTRICTED MODE: Fetch full official YouTube Home feed live from YouTube!
-        final liveSearches = await Future.wait([
-          searchLiveYouTube('youtube trending today', categoryTag: AppCategories.categoryAll),
-          searchLiveYouTube('popular videos $timeDescriptor', categoryTag: AppCategories.categoryAll),
-          searchLiveYouTube('viral videos global', categoryTag: AppCategories.categoryAll),
-        ]);
+        // UNRESTRICTED MODE: Rotating live YouTube feed pools
+        final unrestrictedPools = [
+          ['youtube trending today', 'popular videos $timeDescriptor', 'viral videos global 2026'],
+          ['top music hits billboard', 'new movie cinema trailers 4k', 'trending gaming tech'],
+          ['science space documentary', 'creator challenges entertainment', 'popular vlogs today'],
+          ['global news breaking update', 'automotive cars tech reviews', 'worldwide viral trending'],
+        ];
+        final queries = unrestrictedPools[_refreshCounter % unrestrictedPools.length];
+        final liveSearches = await Future.wait(
+          queries.map((q) => searchLiveYouTube(q, categoryTag: AppCategories.categoryAll)),
+        );
         for (final list in liveSearches) {
           rawResults.addAll(list);
         }
       } else {
-        // SAFE MODE (18+ Restricted): Dynamic real-time News & Information Hub directly from YouTube!
-        final liveSearches = await Future.wait([
-          searchLiveYouTube('bangladesh news $timeDescriptor update', categoryTag: AppCategories.categoryNews),
-          searchLiveYouTube('world news today latest', categoryTag: AppCategories.categoryNews),
-          searchLiveYouTube('bangla news bulletin live', categoryTag: AppCategories.categoryNews),
-        ]);
+        // SAFE MODE (18+ Restricted): Dynamic real-time News, Science, Documentaries & Educational Hub
+        final safePools = [
+          ['bangladesh news $timeDescriptor update', 'world news today latest', 'bangla news bulletin live'],
+          ['somoy tv news আজকের খবর', 'jamuna tv live bulletin', 'independent tv news analysis'],
+          ['channel 24 live khobor', 'bbc world news bangla', 'al jazeera english breaking'],
+          ['science tech discoveries documentary', 'educational lessons animated', 'nature wildlife 4k'],
+          ['as-sunnah foundation lecture', 'peaceful life reminder waz', 'islamic documentary history'],
+        ];
+        final queries = safePools[_refreshCounter % safePools.length];
+        final liveSearches = await Future.wait(
+          queries.map((q) => searchLiveYouTube(q, categoryTag: AppCategories.categoryNews)),
+        );
         for (final list in liveSearches) {
           rawResults.addAll(list);
         }
@@ -385,37 +404,69 @@ class YoutubeService {
         currentCategoryId == AppCategories.categoryNews) {
       final now = DateTime.now();
       final timeDescriptor = now.hour < 12 ? 'morning' : (now.hour < 17 ? 'midday' : 'evening');
-      final liveSearches = await Future.wait([
-        searchLiveYouTube('bangladesh news live stream $timeDescriptor', categoryTag: currentCategoryId),
-        searchLiveYouTube('world news live stream update', categoryTag: currentCategoryId),
-      ]);
+      final newsPools = [
+        ['bangladesh news live stream $timeDescriptor', 'world news live stream update'],
+        ['somoy tv live bulletin 24/7', 'jamuna tv live khobor'],
+        ['channel 24 live stream', 'independent television live bulletin'],
+        ['bbc news live stream world', 'al jazeera live stream english'],
+      ];
+      final queries = newsPools[_refreshCounter % newsPools.length];
+      final liveSearches = await Future.wait(
+        queries.map((q) => searchLiveYouTube(q, categoryTag: currentCategoryId)),
+      );
       for (final list in liveSearches) {
         rawResults.addAll(list);
       }
     } else {
-      String query = '';
-      if (currentCategoryId == AppCategories.categoryMusicSongs) {
-        query = 'trending official music video songs';
-      } else if (currentCategoryId == AppCategories.categoryMoviesCinema) {
-        query = 'official movie trailers cinema 4k';
-      } else if (currentCategoryId == AppCategories.categoryIslamicWaz) {
-        query = 'islamic reminder lecture';
-      } else if (currentCategoryId == AppCategories.categoryKidsCartoons) {
-        query = 'kids cartoons animation stories';
-      } else if (currentCategoryId == AppCategories.categoryEducationTech) {
-        query = 'science technology education documentaries';
-      } else if (currentCategoryId == AppCategories.categoryHalalNasheed) {
-        query = 'halal nasheed vocal';
-      } else if (currentCategoryId == AppCategories.categoryCooking) {
-        query = 'cooking recipes street food';
-      } else if (currentCategoryId == AppCategories.categorySports) {
-        query = 'sports highlights match';
-      }
-      final list = await searchLiveYouTube(
+      final categoryQueries = {
+        AppCategories.categoryMusicSongs: [
+          'trending official music video songs 2026',
+          'billboard hot songs audio release',
+          'top acoustic live music session',
+        ],
+        AppCategories.categoryMoviesCinema: [
+          'official movie trailers cinema 4k 2026',
+          'behind the scenes filmmaking hollywood',
+          'new blockbuster teaser official',
+        ],
+        AppCategories.categoryIslamicWaz: [
+          'islamic reminder lecture bangla',
+          'heart touching quran recitation peaceful',
+          'as-sunnah foundation latest discussion',
+        ],
+        AppCategories.categoryKidsCartoons: [
+          'kids cartoons animation stories moral',
+          'nursery rhymes animated songs kids',
+          'fun science experiments for children',
+        ],
+        AppCategories.categoryEducationTech: [
+          'science technology education documentaries',
+          'artificial intelligence computer science explained',
+          'physics astronomy universe documentary 4k',
+        ],
+        AppCategories.categoryHalalNasheed: [
+          'halal nasheed vocal heart touching',
+          'peaceful vocal nasheed without instruments',
+          'islamic nasheed emotional reminder',
+        ],
+        AppCategories.categoryCooking: [
+          'cooking recipes street food delicious',
+          'village cooking channel traditional',
+          'quick easy breakfast dinner recipes',
+        ],
+        AppCategories.categorySports: [
+          'sports highlights match football cricket',
+          'best goals skills tournament action',
+          'champions league match highlights',
+        ],
+      };
+      final list = categoryQueries[currentCategoryId] ?? ['trending $currentCategoryId 2026'];
+      final query = list[_refreshCounter % list.length];
+      final searchResults = await searchLiveYouTube(
         query,
         categoryTag: currentCategoryId,
       );
-      rawResults.addAll(list);
+      rawResults.addAll(searchResults);
     }
 
     // Channel Diversity Enforcer: Max 2 videos per channel so NO SINGLE CHANNEL dominates
@@ -946,6 +997,85 @@ class YoutubeService {
     return int.tryParse(clean) ?? 0;
   }
 
+  /// Dynamic in-memory runtime cache for channel avatars discovered from YouTube API
+  static final Map<String, String> _dynamicChannelAvatarCache = {};
+
+  /// Cache a channel avatar discovered dynamically from YouTube at runtime
+  static void cacheChannelAvatar(String author, String avatarUrl, {String channelId = ''}) {
+    if (avatarUrl.isEmpty) return;
+    if (author.isNotEmpty) {
+      _dynamicChannelAvatarCache[author.toLowerCase().trim()] = avatarUrl;
+    }
+    if (channelId.isNotEmpty) {
+      _dynamicChannelAvatarCache[channelId.trim()] = avatarUrl;
+    }
+  }
+
+  /// Get cached channel avatar discovered dynamically during runtime
+  static String getCachedChannelAvatar(String author, {String channelId = ''}) {
+    if (channelId.isNotEmpty && _dynamicChannelAvatarCache.containsKey(channelId.trim())) {
+      return _dynamicChannelAvatarCache[channelId.trim()]!;
+    }
+    if (author.isNotEmpty) {
+      return _dynamicChannelAvatarCache[author.toLowerCase().trim()] ?? '';
+    }
+    return '';
+  }
+
+  /// Dynamically fetch channel avatar from YouTube if not yet in cache
+  Future<String> fetchChannelAvatarDynamic(String author, {String channelId = ''}) async {
+    final cached = getCachedChannelAvatar(author, channelId: channelId);
+    if (cached.isNotEmpty) return cached;
+    try {
+      final query = author.isNotEmpty ? author : channelId;
+      if (query.isEmpty) return '';
+      final results = await searchLiveYouTube(query);
+      for (final r in results) {
+        if (r.channelAvatarUrl.isNotEmpty) {
+          cacheChannelAvatar(author, r.channelAvatarUrl, channelId: channelId);
+          return r.channelAvatarUrl;
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  /// Dynamically fetch related videos from YouTube matching the playing video
+  Future<List<VideoModel>> fetchRelatedVideos(VideoModel video) async {
+    try {
+      // 1. Search YouTube by clean video title
+      String cleanTitle = video.title.split('|').first.split('-').first.trim();
+      if (cleanTitle.length < 3) cleanTitle = video.title.trim();
+
+      var related = await searchLiveYouTube(
+        cleanTitle,
+        categoryTag: video.categoryTag,
+      );
+
+      // 2. If results are few, enrich with channel's other videos
+      if (related.length < 5 && video.author.isNotEmpty) {
+        final authorVideos = await searchLiveYouTube(
+          video.author,
+          categoryTag: video.categoryTag,
+        );
+        related = [...related, ...authorVideos];
+      }
+
+      // Deduplicate and filter out the active video itself
+      final seen = <String>{video.id};
+      final List<VideoModel> unique = [];
+      for (final v in related) {
+        if (!seen.contains(v.id)) {
+          seen.add(v.id);
+          unique.add(v);
+        }
+      }
+      return unique;
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// High-fidelity curated catalog with verified real YouTube IDs
   List<VideoModel> getCuratedVideosByCategory(String categoryId) {
     final all = getAllCuratedVideos();
@@ -1169,6 +1299,7 @@ class YoutubeService {
         final items = s['itemSectionRenderer']?['contents'] as List?;
         if (items != null) {
           for (final it in items) {
+            // 1. Check gridShelfViewModel
             final shelf = it['gridShelfViewModel'];
             if (shelf != null) {
               final shelfContents = shelf['contents'] as List?;
@@ -1215,6 +1346,68 @@ class YoutubeService {
                       ),
                     );
                   }
+                }
+              }
+            }
+
+            // 2. Check reelItemRenderer
+            final reel = it['reelItemRenderer'];
+            if (reel != null) {
+              final videoId = reel['videoId'] as String?;
+              if (videoId != null && videoId.length == 11) {
+                final title = _extractRunText(reel['headline'] ?? reel['title']);
+                final channelTitle = _extractRunText(reel['authorText']);
+                final cleanTitle = title.isNotEmpty ? title : 'Trending YouTube Short';
+                final creatorName = channelTitle.isNotEmpty ? channelTitle : _deriveShortsCreator(cleanTitle, videoId);
+                final catTag = _deriveShortsCategory(cleanTitle);
+
+                liveShorts.add(
+                  VideoModel(
+                    id: videoId,
+                    title: cleanTitle,
+                    author: creatorName,
+                    channelId: 'channel_$videoId',
+                    thumbnailUrl: 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
+                    duration: const Duration(seconds: 45),
+                    viewCount: 420000 + (videoId.hashCode.abs() % 850000),
+                    uploadDate: 'Recently',
+                    isShort: true,
+                    categoryTag: catTag,
+                    likeCount: 35000 + (videoId.hashCode.abs() % 75000),
+                    tags: ['shorts', 'trending', 'viral'],
+                  ),
+                );
+              }
+            }
+
+            // 3. Check regular videoRenderer with short duration
+            final v = it['videoRenderer'];
+            if (v != null) {
+              final videoId = v['videoId'] as String?;
+              if (videoId != null && videoId.length == 11) {
+                final durationText = v['lengthText']?['simpleText'] as String? ?? '';
+                final duration = _parseDuration(durationText);
+                final title = _extractRunText(v['title']);
+                final author = _extractRunText(v['ownerText']);
+
+                if (duration.inSeconds <= 65 && duration.inSeconds > 0) {
+                  final catTag = _deriveShortsCategory(title);
+                  liveShorts.add(
+                    VideoModel(
+                      id: videoId,
+                      title: title.isNotEmpty ? title : 'YouTube Short',
+                      author: author.isNotEmpty ? author : 'YouTube Creator',
+                      channelId: 'channel_$videoId',
+                      thumbnailUrl: 'https://i.ytimg.com/vi/$videoId/hqdefault.jpg',
+                      duration: duration,
+                      viewCount: _parseViews(v['viewCountText']?['simpleText'] as String?),
+                      uploadDate: v['publishedTimeText']?['simpleText'] as String? ?? 'Recently',
+                      isShort: true,
+                      categoryTag: catTag,
+                      likeCount: (25000 + (videoId.hashCode.abs() % 80000)),
+                      tags: ['shorts', 'trending', 'viral'],
+                    ),
+                  );
                 }
               }
             }
@@ -1358,8 +1551,9 @@ class YoutubeService {
   }
 
   /// Curated Shorts / Reels List with genuine verified 11-char IDs and authentic creators
-  List<VideoModel> getCuratedShorts() {
-    return [
+  List<VideoModel> getCuratedShorts() => _rawCuratedShorts;
+
+  static final List<VideoModel> _rawCuratedShorts = [
       const VideoModel(
         id: '_vUUs5rrRAs',
         title: 'This Robot Will Replace the Police 🤖 #trending #shorts',
@@ -1473,11 +1667,11 @@ class YoutubeService {
         tags: ['flutter', 'programming', 'tech', 'shorts'],
       ),
     ];
-  }
 
   /// All Curated YouTube Videos with matched real video IDs - Global & Bangladeshi TV Channels & Creators
-  List<VideoModel> getAllCuratedVideos() {
-    return [
+  List<VideoModel> getAllCuratedVideos() => _rawCuratedVideos;
+
+  static final List<VideoModel> _rawCuratedVideos = [
       // 1. SOMOY TV Live (gCNeDWCI0wo) - Bangladesh 24/7 Live News
       const VideoModel(
         id: 'gCNeDWCI0wo',
@@ -2054,5 +2248,4 @@ class YoutubeService {
         ],
       ),
     ];
-  }
 }

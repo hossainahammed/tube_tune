@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
@@ -39,7 +40,7 @@ class CastDevice {
 /// Service managing YouTube Screen Cast & Smart TV device connection state.
 class CastService with ChangeNotifier {
   static CastService? _instance;
-  
+
   bool _isScanning = false;
   CastDevice? _connectedDevice;
   double _volume = 0.75;

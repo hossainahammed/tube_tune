@@ -1,10 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tube_tune/core/constants/app_categories.dart';
 import 'package:tube_tune/core/services/auth_service.dart';
 import 'package:tube_tune/core/services/cast_service.dart';
 import 'package:tube_tune/core/services/filter_service.dart';
 import 'package:tube_tune/core/services/notification_service.dart';
 import 'package:tube_tune/core/services/recommendation_service.dart';
+import 'package:tube_tune/core/services/storage_service.dart';
+import 'package:tube_tune/core/services/subscription_service.dart';
+import 'package:tube_tune/models/channel_model.dart';
 import 'package:tube_tune/models/download_task_model.dart';
 import 'package:tube_tune/models/timer_model.dart';
 import 'package:tube_tune/models/video_model.dart';
@@ -451,6 +455,146 @@ void main() {
       expect(parsed.video.id, 'dl_1');
       expect(parsed.localFilePath, dl.localFilePath);
       expect(parsed.formattedSize, '45.0 MB');
+    });
+
+    test('14. Not Interested: FilterService blocks videos with IDs in hiddenVideoIds', () {
+      final list = [wazVideo, cartoonVideo];
+      final res = filterService.filterList(
+        list,
+        enableShorts: true,
+        block18Plus: false,
+        strictCategoryMode: false,
+        enabledCategories: AppCategories.defaultCategories,
+        customBlacklist: const [],
+        hiddenVideoIds: [wazVideo.id],
+      );
+
+      expect(res.allowed.map((v) => v.id), contains(cartoonVideo.id));
+      expect(res.allowed.map((v) => v.id), isNot(contains(wazVideo.id)));
+      expect(res.filteredCount, 1);
+    });
+
+    test('15. Don\'t Recommend Channel: FilterService blocks channel author and channelId', () {
+      final list = [wazVideo, cartoonVideo];
+
+      // Block by author name (case insensitive)
+      final resByAuthor = filterService.filterList(
+        list,
+        enableShorts: true,
+        block18Plus: false,
+        strictCategoryMode: false,
+        enabledCategories: AppCategories.defaultCategories,
+        customBlacklist: const [],
+        blockedChannels: ['islamic life bd'],
+      );
+      expect(resByAuthor.allowed.map((v) => v.id), isNot(contains(wazVideo.id)));
+      expect(resByAuthor.allowed.map((v) => v.id), contains(cartoonVideo.id));
+
+      // Block by channelId
+      final resById = filterService.filterList(
+        list,
+        enableShorts: true,
+        block18Plus: false,
+        strictCategoryMode: false,
+        enabledCategories: AppCategories.defaultCategories,
+        customBlacklist: const [],
+        blockedChannels: ['ch_kids'],
+      );
+      expect(resById.allowed.map((v) => v.id), isNot(contains(cartoonVideo.id)));
+      expect(resById.allowed.map((v) => v.id), contains(wazVideo.id));
+    });
+
+    test('16. Search Exception: Feed filter excludes hidden/blocked items, but Search query does not', () {
+      final list = [wazVideo, cartoonVideo];
+
+      // Normal Feed Filter: Blocks wazVideo because it was marked Not Interested
+      final feedResult = filterService.filterList(
+        list,
+        enableShorts: true,
+        block18Plus: false,
+        strictCategoryMode: false,
+        enabledCategories: AppCategories.defaultCategories,
+        customBlacklist: const [],
+        hiddenVideoIds: [wazVideo.id],
+      );
+      expect(feedResult.allowed.map((v) => v.id), isNot(contains(wazVideo.id)));
+
+      // Explicit Search: Does not pass hiddenVideoIds, allowing the user to find it again
+      final searchResult = filterService.filterList(
+        list,
+        enableShorts: true,
+        block18Plus: false,
+        strictCategoryMode: false,
+        enabledCategories: AppCategories.defaultCategories,
+        customBlacklist: const [],
+      );
+      expect(searchResult.allowed.map((v) => v.id), contains(wazVideo.id));
+    });
+
+    test('17. ChannelModel: JSON serialization, copyWith, and equality methods work correctly', () {
+      const channel = ChannelModel(
+        id: 'ch_test_101',
+        name: 'Tech World BD',
+        avatarUrl: 'https://example.com/avatar.jpg',
+        subscriberCount: '1.5M subscribers',
+        isVerified: true,
+        isSubscribed: true,
+        description: 'Test Channel description',
+        hasNewUpload: true,
+      );
+
+      final json = channel.toJson();
+      final restored = ChannelModel.fromJson(json);
+
+      expect(restored.id, channel.id);
+      expect(restored.name, channel.name);
+      expect(restored.avatarUrl, channel.avatarUrl);
+      expect(restored.subscriberCount, channel.subscriberCount);
+      expect(restored.isVerified, isTrue);
+      expect(restored.isSubscribed, isTrue);
+      expect(restored.hasNewUpload, isTrue);
+
+      final updated = channel.copyWith(isSubscribed: false, hasNewUpload: false);
+      expect(updated.isSubscribed, isFalse);
+      expect(updated.hasNewUpload, isFalse);
+      expect(updated.name, channel.name);
+    });
+
+    test('18. SubscriptionService: Manages default channels, subscribes from VideoModel, and toggles subscriptions', () async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = await StorageService.getInstance();
+      final subService = await SubscriptionService.getInstance(storage);
+
+      // Verify default channels loaded
+      expect(subService.subscribedChannels.isNotEmpty, isTrue);
+      expect(subService.isSubscribed('SOMOY TV'), isTrue);
+      expect(subService.isSubscribed('BBC News'), isTrue);
+
+      // Subscribe from video
+      const newVideo = VideoModel(
+        id: 'vid_new_channel',
+        title: 'New Breakthrough in Physics',
+        author: 'Quantum Physics Lab',
+        channelId: 'ch_quantum_99',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        channelAvatarUrl: 'https://example.com/quantum.jpg',
+        duration: Duration(minutes: 10),
+        viewCount: 50000,
+        uploadDate: 'Today',
+        categoryTag: AppCategories.categoryEducationTech,
+      );
+
+      expect(subService.isSubscribed(newVideo.author), isFalse);
+      await subService.subscribeFromVideo(newVideo);
+      expect(subService.isSubscribed(newVideo.author), isTrue);
+
+      // Toggle subscription from video
+      await subService.toggleSubscriptionFromVideo(newVideo);
+      expect(subService.isSubscribed(newVideo.author), isFalse);
+
+      // Discover channels
+      final discover = subService.getDiscoverChannels();
+      expect(discover, isA<List<ChannelModel>>());
     });
   });
 }

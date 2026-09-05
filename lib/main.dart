@@ -8,6 +8,7 @@ import 'core/services/cast_service.dart';
 import 'core/services/download_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/storage_service.dart';
+import 'core/services/subscription_service.dart';
 import 'core/services/timer_service.dart';
 import 'core/services/youtube_service.dart';
 import 'core/theme/app_theme.dart';
@@ -16,6 +17,7 @@ import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/player_viewmodel.dart';
 import 'viewmodels/search_viewmodel.dart';
 import 'viewmodels/settings_viewmodel.dart';
+import 'viewmodels/subscriptions_viewmodel.dart';
 
 import 'package:just_audio_background/just_audio_background.dart';
 
@@ -51,6 +53,7 @@ void main() async {
   final storageService = await StorageService.getInstance();
   final timerService = await TimerService.getInstance(storageService);
   final authService = await AuthService.getInstance(storageService);
+  final subscriptionService = await SubscriptionService.getInstance(storageService);
   final youtubeService = YoutubeService.instance;
   if (!kIsWeb) {
     await DownloadService.instance.init();
@@ -61,6 +64,7 @@ void main() async {
       storageService: storageService,
       timerService: timerService,
       authService: authService,
+      subscriptionService: subscriptionService,
       youtubeService: youtubeService,
     ),
   );
@@ -70,6 +74,7 @@ class TubeTuneApp extends StatelessWidget {
   final StorageService storageService;
   final TimerService timerService;
   final AuthService authService;
+  final SubscriptionService subscriptionService;
   final YoutubeService youtubeService;
 
   const TubeTuneApp({
@@ -77,6 +82,7 @@ class TubeTuneApp extends StatelessWidget {
     required this.storageService,
     required this.timerService,
     required this.authService,
+    required this.subscriptionService,
     required this.youtubeService,
   });
 
@@ -86,6 +92,7 @@ class TubeTuneApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider.value(value: timerService),
         ChangeNotifierProvider.value(value: authService),
+        ChangeNotifierProvider.value(value: subscriptionService),
         ChangeNotifierProvider.value(value: CastService.instance),
         ChangeNotifierProvider.value(value: NotificationService.instance),
         ChangeNotifierProvider(
@@ -132,6 +139,20 @@ class TubeTuneApp extends StatelessWidget {
               shortsVm ??
               ShortsViewModel(
                 youtubeService: youtubeService,
+                settingsViewModel: settingsVm,
+              ),
+        ),
+        ChangeNotifierProxyProvider2<SettingsViewModel, SubscriptionService, SubscriptionsViewModel>(
+          create: (ctx) => SubscriptionsViewModel(
+            youtubeService: youtubeService,
+            subscriptionService: subscriptionService,
+            settingsViewModel: ctx.read<SettingsViewModel>(),
+          ),
+          update: (ctx, settingsVm, subService, subVm) =>
+              subVm ??
+              SubscriptionsViewModel(
+                youtubeService: youtubeService,
+                subscriptionService: subService,
                 settingsViewModel: settingsVm,
               ),
         ),

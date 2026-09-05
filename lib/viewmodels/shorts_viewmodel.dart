@@ -36,6 +36,8 @@ class ShortsViewModel with ChangeNotifier {
   bool _lastStrictCategoryMode = true;
   String _lastCustomBlacklistHash = '';
   String _lastCategoriesHash = '';
+  String _lastHiddenHash = '';
+  String _lastBlockedHash = '';
 
   void _onSettingsChanged() {
     final enableShorts = settingsViewModel.enableShorts;
@@ -43,18 +45,24 @@ class ShortsViewModel with ChangeNotifier {
     final strict = settingsViewModel.strictCategoryMode;
     final blacklistHash = settingsViewModel.customBlacklist.join(',');
     final categoriesHash = settingsViewModel.enabledCategories.map((c) => c.id).join(',');
+    final hiddenHash = settingsViewModel.hiddenVideoIds.join(',');
+    final blockedHash = settingsViewModel.blockedChannels.join(',');
 
     // Only reload if actual filter settings or categories changed, NOT on 1-second timer ticks!
     if (enableShorts != _lastEnableShorts ||
         block18 != _lastBlock18Plus ||
         strict != _lastStrictCategoryMode ||
         blacklistHash != _lastCustomBlacklistHash ||
-        categoriesHash != _lastCategoriesHash) {
+        categoriesHash != _lastCategoriesHash ||
+        hiddenHash != _lastHiddenHash ||
+        blockedHash != _lastBlockedHash) {
       _lastEnableShorts = enableShorts;
       _lastBlock18Plus = block18;
       _lastStrictCategoryMode = strict;
       _lastCustomBlacklistHash = blacklistHash;
       _lastCategoriesHash = categoriesHash;
+      _lastHiddenHash = hiddenHash;
+      _lastBlockedHash = blockedHash;
       loadShorts();
     }
   }
@@ -85,11 +93,23 @@ class ShortsViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
 
       _shorts = filterResult.allowed;
     } catch (_) {
-      _shorts = youtubeService.getCuratedShorts();
+      final curated = youtubeService.getCuratedShorts();
+      _shorts = FilterService.instance.filterList(
+        curated,
+        enableShorts: true,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
+      ).allowed;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -117,6 +137,8 @@ class ShortsViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
 
       final allowed = filterResult.allowed;
@@ -132,6 +154,33 @@ class ShortsViewModel with ChangeNotifier {
     } finally {
       _isLoadingMore = false;
       notifyListeners();
+    }
+  }
+
+  /// Real-time deletion of a Short on "Not interested"
+  Future<void> markShortNotInterested(VideoModel short) async {
+    _shorts.removeWhere((s) => s.id == short.id);
+    if (_currentIndex >= _shorts.length && _shorts.isNotEmpty) {
+      _currentIndex = _shorts.length - 1;
+    }
+    notifyListeners();
+    await settingsViewModel.addHiddenVideoId(short.id);
+  }
+
+  /// Real-time deletion of all Shorts from channel on "Don't recommend channel"
+  Future<void> blockChannel(String author, {String? channelId}) async {
+    final normAuthor = author.trim().toLowerCase();
+    final normId = channelId?.trim().toLowerCase();
+    _shorts.removeWhere((s) =>
+        s.author.trim().toLowerCase() == normAuthor ||
+        (normId != null && s.channelId.trim().toLowerCase() == normId));
+    if (_currentIndex >= _shorts.length && _shorts.isNotEmpty) {
+      _currentIndex = _shorts.length - 1;
+    }
+    notifyListeners();
+    await settingsViewModel.addBlockedChannel(author);
+    if (channelId != null && channelId.isNotEmpty && channelId != author) {
+      await settingsViewModel.addBlockedChannel(channelId);
     }
   }
 

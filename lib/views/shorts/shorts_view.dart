@@ -6,10 +6,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/constants/app_colors.dart';
+import '../../core/services/subscription_service.dart';
 import '../../core/services/youtube_service.dart';
 import '../../models/comment_model.dart';
 import '../../models/video_model.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/home_viewmodel.dart';
 import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../../viewmodels/shorts_viewmodel.dart';
@@ -223,7 +225,6 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
   bool _isMuted = false;
   bool _is2xFastForward = false;
   bool _showPlayPauseOverlay = false;
-  bool _isSubscribed = false;
   bool _isDisliked = false;
   bool _showHeartBurst = false;
 
@@ -598,27 +599,34 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
                     ),
                   ),
                   const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () {
-                      setState(() => _isSubscribed = !_isSubscribed);
-                      _showToast(_isSubscribed ? 'Subscribed to ${widget.short.author}' : 'Unsubscribed');
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _isSubscribed ? AppColors.surfaceElevated : Colors.white,
+                  Consumer<SubscriptionService>(
+                    builder: (context, subService, _) {
+                      final isSubscribed = subService.isSubscribed(widget.short.author);
+                      return InkWell(
+                        onTap: () async {
+                          final nowSubscribed = await subService.toggleSubscriptionFromVideo(widget.short);
+                          if (context.mounted) {
+                            _showToast(nowSubscribed ? 'Subscribed to ${widget.short.author}' : 'Unsubscribed');
+                          }
+                        },
                         borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        _isSubscribed ? 'Subscribed' : 'Subscribe',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _isSubscribed ? Colors.white : Colors.black,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSubscribed ? AppColors.surfaceElevated : Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Text(
+                            isSubscribed ? 'Subscribed' : 'Subscribe',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: isSubscribed ? Colors.white : Colors.black,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -838,7 +846,7 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
     );
   }
 
-  /// 3-Dot More Options Menu (Description, Captions, Speed, Don't recommend, Report)
+  /// 3-Dot More Options Menu (Description, Save to Watch Later, Captions, Speed, Not interested, Don't recommend, Report)
   void _showMoreOptionsMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -856,16 +864,25 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
                 decoration: BoxDecoration(color: AppColors.textMuted, borderRadius: BorderRadius.circular(2)),
               ),
               ListTile(
-                leading: const Icon(Icons.info_outline, color: Colors.white),
-                title: const Text('Description', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.info_outline, color: Colors.white, size: 22),
+                title: const Text('Description', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _showDescriptionBottomSheet(context);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.closed_caption_outlined, color: Colors.white),
-                title: const Text('Captions', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.watch_later_outlined, color: Colors.white, size: 22),
+                title: const Text('Save to Watch Later', style: TextStyle(color: Colors.white, fontSize: 14)),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  context.read<PlayerViewModel>().toggleWatchLater(widget.short);
+                  _showToast('Saved to Watch Later');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.closed_caption_outlined, color: Colors.white, size: 22),
+                title: const Text('Captions', style: TextStyle(color: Colors.white, fontSize: 14)),
                 subtitle: const Text('English (auto-generated)', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -873,8 +890,8 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.speed, color: Colors.white),
-                title: const Text('Playback speed', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.speed, color: Colors.white, size: 22),
+                title: const Text('Playback speed', style: TextStyle(color: Colors.white, fontSize: 14)),
                 subtitle: Text(_is2xFastForward ? '2.0x' : 'Normal (1.0x)', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -882,19 +899,34 @@ class _ShortsPlayerItemState extends State<ShortsPlayerItem> with TickerProvider
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.not_interested, color: Colors.white),
-                title: const Text('Don\'t recommend this channel', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.do_not_disturb_on_outlined, color: Colors.white, size: 22),
+                title: const Text('Not interested', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  final settingsVm = context.read<SettingsViewModel>();
-                  settingsVm.addBlacklistKeyword(widget.short.author);
-                  _showToast('We won\'t recommend videos from this channel');
+                  context.read<ShortsViewModel>().markShortNotInterested(widget.short);
+                  context.read<HomeViewModel>().markVideoNotInterested(widget.short);
+                  _showToast('Short removed. We won\'t recommend it again.');
                   widget.onSkipNext?.call();
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.flag_outlined, color: Colors.white),
-                title: const Text('Report', style: TextStyle(color: Colors.white)),
+                leading: const Icon(Icons.remove_circle_outline_rounded, color: Colors.white, size: 22),
+                title: const Text('Don\'t recommend this channel', style: TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: Text(
+                  widget.short.author,
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  context.read<ShortsViewModel>().blockChannel(widget.short.author, channelId: widget.short.channelId);
+                  context.read<HomeViewModel>().blockChannel(widget.short.author, channelId: widget.short.channelId);
+                  _showToast('We won\'t recommend videos from "${widget.short.author}" again.');
+                  widget.onSkipNext?.call();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.flag_outlined, color: Colors.white, size: 22),
+                title: const Text('Report', style: TextStyle(color: Colors.white, fontSize: 14)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _showToast('Thank you for reporting. Our team will review.');

@@ -1,7 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tube_tune/core/constants/app_categories.dart';
+import 'package:tube_tune/core/services/auth_service.dart';
 import 'package:tube_tune/core/services/filter_service.dart';
+import 'package:tube_tune/core/services/storage_service.dart';
 import 'package:tube_tune/models/video_model.dart';
+import 'package:tube_tune/viewmodels/auth_viewmodel.dart';
+import 'package:tube_tune/views/shared/cast_bottom_sheet.dart';
+import 'package:tube_tune/views/shared/google_signin_dialog.dart';
 
 void main() {
   test('FilterService blocks 18+ content and out-of-category content', () {
@@ -46,4 +54,41 @@ void main() {
     );
     expect(allowed, isTrue);
   });
+
+  testWidgets('CastBottomSheet renders cleanly without ListTile DecoratedBox assertion', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CastBottomSheet(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Connect to a device'), findsOneWidget);
+    expect(find.text('Link with TV code'), findsOneWidget);
+  });
+
+  testWidgets('GoogleSignInDialog renders cleanly without assertion errors', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final storage = await StorageService.getInstance();
+    final authService = await AuthService.getInstance(storage);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<AuthViewModel>(
+        create: (_) => AuthViewModel(authService: authService),
+        child: const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: GoogleSignInDialog(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sign in with Google'), findsOneWidget);
+  });
 }
+

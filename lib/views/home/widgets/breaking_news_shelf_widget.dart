@@ -52,16 +52,20 @@ class BreakingNewsShelfWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Live News & Broadcasts',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.3,
+              const Expanded(
+                child: Text(
+                  'Live News & Broadcasts',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 4),
               IconButton(
                 icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFFAAAAAA)),
                 padding: EdgeInsets.zero,

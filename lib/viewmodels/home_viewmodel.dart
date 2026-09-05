@@ -35,6 +35,8 @@ class HomeViewModel with ChangeNotifier {
       strictCategoryMode: settingsViewModel.strictCategoryMode,
       enabledCategories: settingsViewModel.enabledCategories,
       customBlacklist: settingsViewModel.customBlacklist,
+      hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+      blockedChannels: settingsViewModel.blockedChannels,
     );
     _separateLiveAndFeed(filterResult.allowed);
 
@@ -46,6 +48,8 @@ class HomeViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
       _shorts = shortsFilter.allowed;
     } else {
@@ -75,6 +79,8 @@ class HomeViewModel with ChangeNotifier {
   bool _lastStrictCategoryMode = true;
   String _lastCustomBlacklistHash = '';
   String _lastCategoriesHash = '';
+  String _lastHiddenHash = '';
+  String _lastBlockedHash = '';
 
   void _onSettingsChanged() {
     final enableShorts = settingsViewModel.enableShorts;
@@ -82,18 +88,24 @@ class HomeViewModel with ChangeNotifier {
     final strict = settingsViewModel.strictCategoryMode;
     final blacklistHash = settingsViewModel.customBlacklist.join(',');
     final categoriesHash = settingsViewModel.enabledCategories.map((c) => c.id).join(',');
+    final hiddenHash = settingsViewModel.hiddenVideoIds.join(',');
+    final blockedHash = settingsViewModel.blockedChannels.join(',');
 
     // Only refresh feed if actual filter settings or categories changed, NOT on 1-second timer ticks!
     if (enableShorts != _lastEnableShorts ||
         block18 != _lastBlock18Plus ||
         strict != _lastStrictCategoryMode ||
         blacklistHash != _lastCustomBlacklistHash ||
-        categoriesHash != _lastCategoriesHash) {
+        categoriesHash != _lastCategoriesHash ||
+        hiddenHash != _lastHiddenHash ||
+        blockedHash != _lastBlockedHash) {
       _lastEnableShorts = enableShorts;
       _lastBlock18Plus = block18;
       _lastStrictCategoryMode = strict;
       _lastCustomBlacklistHash = blacklistHash;
       _lastCategoriesHash = categoriesHash;
+      _lastHiddenHash = hiddenHash;
+      _lastBlockedHash = blockedHash;
       loadFeed(category: _selectedCategory, isRefresh: true);
     }
   }
@@ -112,13 +124,23 @@ class HomeViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
       _separateLiveAndFeed(filterResult.allowed);
     } else {
       final raw = youtubeService.getCuratedVideosByCategory(categoryId);
-      final filtered = settingsViewModel.block18Plus
-          ? raw.where((v) => !FilterService.instance.isSongsOrMovies(v)).toList()
-          : raw;
+      final filtered = FilterService.instance.filterList(
+        raw,
+        enableShorts: false,
+        block18Plus: settingsViewModel.block18Plus,
+        strictCategoryMode: settingsViewModel.strictCategoryMode,
+        enabledCategories: settingsViewModel.enabledCategories,
+        customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
+        currentSelectedCategoryId: categoryId,
+      ).allowed;
       _separateLiveAndFeed(filtered);
     }
     notifyListeners();
@@ -145,7 +167,7 @@ class HomeViewModel with ChangeNotifier {
         isRefresh: isRefresh,
       );
 
-      // 2. Apply Master Filter Engine (Shorts, 18+, Category Isolation, Blacklist)
+      // 2. Apply Master Filter Engine (Shorts, 18+, Category Isolation, Blacklist, Hidden/Blocked)
       final filterResult = FilterService.instance.filterList(
         rawVideos,
         enableShorts: settingsViewModel.enableShorts,
@@ -153,6 +175,8 @@ class HomeViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
         currentSelectedCategoryId: catId == AppCategories.categoryAll ? null : catId,
       );
 
@@ -168,6 +192,8 @@ class HomeViewModel with ChangeNotifier {
           strictCategoryMode: settingsViewModel.strictCategoryMode,
           enabledCategories: settingsViewModel.enabledCategories,
           customBlacklist: settingsViewModel.customBlacklist,
+          hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+          blockedChannels: settingsViewModel.blockedChannels,
           currentSelectedCategoryId: catId == AppCategories.categoryAll ? null : catId,
         );
         allowed = curatedFilter.allowed;
@@ -199,6 +225,8 @@ class HomeViewModel with ChangeNotifier {
             strictCategoryMode: settingsViewModel.strictCategoryMode,
             enabledCategories: settingsViewModel.enabledCategories,
             customBlacklist: settingsViewModel.customBlacklist,
+            hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+            blockedChannels: settingsViewModel.blockedChannels,
           );
           _suggestedVideos = suggestedFilter.allowed;
         } catch (_) {
@@ -218,6 +246,8 @@ class HomeViewModel with ChangeNotifier {
           strictCategoryMode: settingsViewModel.strictCategoryMode,
           enabledCategories: settingsViewModel.enabledCategories,
           customBlacklist: settingsViewModel.customBlacklist,
+          hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+          blockedChannels: settingsViewModel.blockedChannels,
         );
         _shorts = shortsFilter.allowed;
       } else {
@@ -226,8 +256,19 @@ class HomeViewModel with ChangeNotifier {
     } catch (e) {
       if (_videos.isEmpty) {
         final fallbackCurated = youtubeService.getCuratedVideosByCategory(catId);
-        if (fallbackCurated.isNotEmpty) {
-          _separateLiveAndFeed(fallbackCurated, isRefresh: isRefresh);
+        final filteredCurated = FilterService.instance.filterList(
+          fallbackCurated,
+          enableShorts: false,
+          block18Plus: settingsViewModel.block18Plus,
+          strictCategoryMode: settingsViewModel.strictCategoryMode,
+          enabledCategories: settingsViewModel.enabledCategories,
+          customBlacklist: settingsViewModel.customBlacklist,
+          hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+          blockedChannels: settingsViewModel.blockedChannels,
+          currentSelectedCategoryId: catId == AppCategories.categoryAll ? null : catId,
+        ).allowed;
+        if (filteredCurated.isNotEmpty) {
+          _separateLiveAndFeed(filteredCurated, isRefresh: isRefresh);
           _errorMessage = null;
         } else {
           _errorMessage = 'Unable to load feed. Please try again.';
@@ -261,6 +302,8 @@ class HomeViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
         currentSelectedCategoryId: _selectedCategory == AppCategories.categoryAll ? null : _selectedCategory,
       );
 
@@ -299,6 +342,8 @@ class HomeViewModel with ChangeNotifier {
         strictCategoryMode: settingsViewModel.strictCategoryMode,
         enabledCategories: settingsViewModel.enabledCategories,
         customBlacklist: settingsViewModel.customBlacklist,
+        hiddenVideoIds: settingsViewModel.hiddenVideoIds,
+        blockedChannels: settingsViewModel.blockedChannels,
       );
 
       final allowed = filterResult.allowed;
@@ -313,6 +358,46 @@ class HomeViewModel with ChangeNotifier {
     } finally {
       _isLoadingMore = false;
       notifyListeners();
+    }
+  }
+
+  /// Real-time deletion and persistent exclusion for "Not interested"
+  Future<void> markVideoNotInterested(VideoModel video) async {
+    // 1. Instantly delete from current in-memory lists for 0ms lag
+    _videos.removeWhere((v) => v.id == video.id);
+    _liveStreams.removeWhere((v) => v.id == video.id);
+    _shorts.removeWhere((v) => v.id == video.id);
+    _suggestedVideos.removeWhere((v) => v.id == video.id);
+    notifyListeners();
+
+    // 2. Persist in storage via SettingsViewModel
+    await settingsViewModel.addHiddenVideoId(video.id);
+  }
+
+  /// Real-time deletion and persistent exclusion for "Don't recommend channel"
+  Future<void> blockChannel(String author, {String? channelId}) async {
+    final normAuthor = author.trim().toLowerCase();
+    final normId = channelId?.trim().toLowerCase();
+
+    // 1. Instantly delete all videos matching this channel for 0ms lag
+    _videos.removeWhere((v) =>
+        v.author.trim().toLowerCase() == normAuthor ||
+        (normId != null && v.channelId.trim().toLowerCase() == normId));
+    _liveStreams.removeWhere((v) =>
+        v.author.trim().toLowerCase() == normAuthor ||
+        (normId != null && v.channelId.trim().toLowerCase() == normId));
+    _shorts.removeWhere((v) =>
+        v.author.trim().toLowerCase() == normAuthor ||
+        (normId != null && v.channelId.trim().toLowerCase() == normId));
+    _suggestedVideos.removeWhere((v) =>
+        v.author.trim().toLowerCase() == normAuthor ||
+        (normId != null && v.channelId.trim().toLowerCase() == normId));
+    notifyListeners();
+
+    // 2. Persist author and channelId
+    await settingsViewModel.addBlockedChannel(author);
+    if (channelId != null && channelId.isNotEmpty && channelId != author) {
+      await settingsViewModel.addBlockedChannel(channelId);
     }
   }
 

@@ -23,33 +23,40 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final user = authVm.currentUser;
 
     return AppBar(
-      titleSpacing: 16,
+      titleSpacing: 12,
       elevation: 0,
       backgroundColor: AppColors.background,
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // TubeTune Official Protected Shield App Icon (Exact YouTube aspect ratio)
-          Image.asset(
-            'assets/icons/app_icon.png',
-            width: 30,
-            height: 30,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 5),
+      title: SizedBox(
+        height: 36,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // TubeTune Official Protected Shield App Icon
+              Image.asset(
+                'assets/icons/app_icon.png',
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 6),
 
-          // "TubeTune" Brand Text (YouTube Official Style)
-          const Text(
-            'TubeTune',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.8,
-              color: Colors.white,
-              fontFamily: 'Roboto',
-            ),
+              // "TubeTune" Brand Text
+              const Text(
+                'TubeTune',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                  color: Colors.white,
+                  fontFamily: 'Roboto',
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       actions: [
         // Cast Icon (Authentic YouTube Connect to a Device)
@@ -58,9 +65,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           builder: (context, _) {
             final isConnected = CastService.instance.isConnected;
             return IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.all(6),
               icon: Icon(
                 isConnected ? Icons.cast_connected_rounded : Icons.cast_outlined,
-                size: 22,
+                size: 20,
                 color: isConnected ? const Color(0xFF4285F4) : Colors.white,
               ),
               tooltip: isConnected ? 'Casting to TV' : 'Connect to a device',
@@ -75,6 +85,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           builder: (context, _) {
             final unreadCount = NotificationService.instance.unreadCount;
             return IconButton(
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.all(6),
               tooltip: 'Notifications',
               onPressed: () {
                 Navigator.of(context).push(
@@ -84,7 +97,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.notifications_none_outlined, size: 23, color: Colors.white),
+                  const Icon(Icons.notifications_none_outlined, size: 21, color: Colors.white),
                   if (unreadCount > 0)
                     Positioned(
                       top: -3,
@@ -116,7 +129,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
         // Search Icon (Authentic YouTube)
         IconButton(
-          icon: const Icon(Icons.search_outlined, size: 24, color: Colors.white),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          padding: const EdgeInsets.all(6),
+          icon: const Icon(Icons.search_outlined, size: 22, color: Colors.white),
           tooltip: 'Search',
           onPressed: () {
             Navigator.of(context).push(
@@ -143,19 +159,19 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           },
           borderRadius: BorderRadius.circular(20),
           child: Padding(
-            padding: const EdgeInsets.only(left: 4, right: 14),
+            padding: const EdgeInsets.only(left: 4, right: 10),
             child: CircleAvatar(
-              radius: 14,
+              radius: 13,
               backgroundColor: authVm.isLoggedIn ? const Color(0xFF4285F4) : AppColors.surfaceElevated,
               backgroundImage: authVm.isLoggedIn && user.avatarUrl.isNotEmpty
                   ? NetworkImage(user.avatarUrl)
                   : null,
               child: !authVm.isLoggedIn
-                  ? const Icon(Icons.account_circle, size: 22, color: AppColors.textSecondary)
+                  ? const Icon(Icons.account_circle, size: 20, color: AppColors.textSecondary)
                   : (user.avatarUrl.isEmpty
                       ? Text(
                           user.name.isNotEmpty ? user.name[0] : 'U',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                         )
                       : null),
             ),

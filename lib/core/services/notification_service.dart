@@ -39,9 +39,9 @@ class NotificationService with ChangeNotifier {
     _notifications = [
       const AppNotificationModel(
         id: 'notif_somoy_live',
-        channelName: 'Somoy TV',
-        channelAvatarUrl: 'https://yt3.ggpht.com/ytc/AIdro_kU5y8v3C9rQp1w8M7Xq2Z3e6b8c9d0=s176-c-k-c0x00ffffff-no-rj',
-        title: '🔴 Somoy TV is live: Somoy Breaking News Bulletin & National Updates',
+        channelName: 'SOMOY TV',
+        channelAvatarUrl: 'https://yt3.ggpht.com/HIVp56M09fDcVPKGpRXkl47xJcG7JGV5Mwn8E_7TlwmPgjgg1MQ7t_oxiy4xkmgo5fmWxilY3yU=s176-c-k-c0x00ffffff-no-rj',
+        title: '🔴 SOMOY TV is live: Somoy Breaking News Bulletin & National Updates',
         timeAgo: '12 minutes ago',
         videoId: '21X5lGlDOfg',
         videoThumbnailUrl: 'https://i.ytimg.com/vi/21X5lGlDOfg/hqdefault.jpg',
@@ -51,7 +51,7 @@ class NotificationService with ChangeNotifier {
       const AppNotificationModel(
         id: 'notif_jamuna_upload',
         channelName: 'Jamuna TV',
-        channelAvatarUrl: 'https://yt3.ggpht.com/ytc/AIdro_n8o2Z1w4M7Xq3rQp5y8v2Z3e6b8c9d0=s176-c-k-c0x00ffffff-no-rj',
+        channelAvatarUrl: 'https://yt3.ggpht.com/54prTx28YpPxSpk_PfJGuOfQgcZbNdvbfk0adGePrAvINO4Mo9_bw3j-J4seXn6hNGuMr1ck=s176-c-k-c0x00ffffff-no-rj-mo',
         title: 'Jamuna TV uploaded: আজকের শীর্ষ খবর ও বিশেষ সংবাদ বিশ্লেষণ',
         timeAgo: '45 minutes ago',
         videoId: 'w_Ma8oQLmSM',
@@ -61,7 +61,7 @@ class NotificationService with ChangeNotifier {
       const AppNotificationModel(
         id: 'notif_bbc_world',
         channelName: 'BBC News',
-        channelAvatarUrl: 'https://yt3.ggpht.com/ytc/AIdro_l2Z1w3rQp5y8v4M7Xq8b8c9d0e6=s176-c-k-c0x00ffffff-no-rj',
+        channelAvatarUrl: 'https://yt3.ggpht.com/v4JamQ9B-PUiJHjmZQs9UwTaoLQW8vijJMMpV5QvA2wHQ6iwWM8Q1s6O4jgTl0dtDigVWAi7SA=s176-c-k-c0x00ffffff-no-rj-mo',
         title: 'BBC World News: Global headlines & breaking economic developments',
         timeAgo: '2 hours ago',
         videoId: '9Auq9mYxFEE',
@@ -71,7 +71,7 @@ class NotificationService with ChangeNotifier {
       const AppNotificationModel(
         id: 'notif_channel24',
         channelName: 'Channel 24',
-        channelAvatarUrl: 'https://yt3.ggpht.com/ytc/AIdro_k3rQp1w8M7Xq2Z5y8v3e6b8c9d0=s176-c-k-c0x00ffffff-no-rj',
+        channelAvatarUrl: 'https://yt3.ggpht.com/8Q8MCd6ypr2Hzbp60VE_stJPl063kQYfeTxdIQkAXRfhdzxByLl0sJYHsk43uTM4W_cOzwcbPQ=s176-c-k-c0x00ffffff-no-rj-mo',
         title: 'Channel 24: দেশজুড়ে তাজা খবর ও সরাসরি সম্প্রচার বুলেটিন',
         timeAgo: '4 hours ago',
         videoId: 'L_LUpnjgPso',
@@ -81,7 +81,7 @@ class NotificationService with ChangeNotifier {
       const AppNotificationModel(
         id: 'notif_aljazeera',
         channelName: 'Al Jazeera English',
-        channelAvatarUrl: 'https://yt3.ggpht.com/ytc/AIdro_m8c9d0e6b8k2Z1w3rQp5y8v4M7Xq=s176-c-k-c0x00ffffff-no-rj',
+        channelAvatarUrl: 'https://yt3.ggpht.com/XsTga3Nsfc1E6ZgC6HfHfzTG_3zhuZleOnsKxSK2aILMjwkkIm-0vdALFaU-yt0Lw07iLtbSifk=s176-c-k-c0x00ffffff-no-rj-mo',
         title: 'Al Jazeera Live: Middle East and Global Diplomatic Summit Coverage',
         timeAgo: 'Yesterday',
         videoId: 'gCNeDWCI0vo',
