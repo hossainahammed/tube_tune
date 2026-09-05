@@ -1097,48 +1097,166 @@ class YoutubeService {
     return all.where((v) => v.categoryTag == categoryId).toList();
   }
 
-  /// Get direct MP4/HLS stream URL for ultra-fast native video playback (no webview/iframe)
+  static String cleanYoutubeVideoId(String raw) {
+    String clean = raw.trim();
+    if (clean.contains('v=')) {
+      clean = clean.split('v=')[1].split('&')[0];
+    } else if (clean.contains('youtu.be/')) {
+      clean = clean.split('youtu.be/')[1].split('?')[0];
+    } else if (clean.contains('/shorts/')) {
+      clean = clean.split('/shorts/')[1].split('?')[0];
+    } else if (clean.contains('/live/')) {
+      clean = clean.split('/live/')[1].split('?')[0];
+    }
+    if (clean.length > 11) {
+      clean = clean.substring(0, 11);
+    }
+    return clean;
+  }
+
+  /// Direct stream resolution via YouTube Innertube Player API (returns HLS manifest for live streams or direct mp4 formats)
+  Future<String?> _getStreamFromInnertubePlayer(String cleanId) async {
+    if (_httpClient == null || kIsWeb) return null;
+    try {
+      final req = await _httpClient!.postUrl(
+        Uri.parse('https://www.youtube.com/youtubei/v1/player?prettyPrint=false'),
+      ).timeout(const Duration(seconds: 4));
+
+      req.headers.set('content-type', 'application/json');
+      req.headers.set(
+        'user-agent',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      );
+
+      req.write(jsonEncode({
+        "context": {
+          "client": {
+            "clientName": "ANDROID",
+            "clientVersion": "19.09.37",
+            "hl": "en",
+            "gl": "US",
+          },
+        },
+        "videoId": cleanId,
+      }));
+
+      final res = await req.close().timeout(const Duration(seconds: 5));
+      if (res.statusCode != 200) return null;
+
+      final body = await res.transform(utf8.decoder).join();
+      final json = jsonDecode(body) as Map<String, dynamic>;
+      final streamingData = json['streamingData'];
+      if (streamingData != null) {
+        // 1. Direct HLS Manifest URL (ideal for live streams and videos)
+        final hls = streamingData['hlsManifestUrl'] as String?;
+        if (hls != null && hls.isNotEmpty) return hls;
+
+        // 2. Formats (muxed audio/video)
+        final formats = streamingData['formats'];
+        if (formats != null && formats is List && formats.isNotEmpty) {
+          for (final f in formats) {
+            final url = f['url'] as String?;
+            if (url != null && url.isNotEmpty) return url;
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Direct stream resolution via Piped API instances
+  Future<String?> _getStreamFromPiped(String cleanId) async {
+    if (_httpClient == null || kIsWeb) return null;
+    final instances = [
+      'https://pipedapi.kavin.rocks',
+      'https://api.piped.private.coffee',
+      'https://pipedapi.tokhmi.xyz',
+    ];
+    for (final host in instances) {
+      try {
+        final req = await _httpClient!.getUrl(
+          Uri.parse('$host/streams/$cleanId'),
+        ).timeout(const Duration(seconds: 3));
+        final res = await req.close().timeout(const Duration(seconds: 4));
+        if (res.statusCode == 200) {
+          final body = await res.transform(utf8.decoder).join();
+          final json = jsonDecode(body) as Map<String, dynamic>;
+          final hls = json['hls'] as String?;
+          if (hls != null && hls.isNotEmpty) return hls;
+          final videoStreams = json['videoStreams'];
+          if (videoStreams != null && videoStreams is List && videoStreams.isNotEmpty) {
+            for (final vs in videoStreams) {
+              final url = vs['url'] as String?;
+              if (url != null && url.isNotEmpty) return url;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Get direct MP4/HLS stream URL for ultra-fast native video playback (with multi-engine failover)
   Future<String?> getDirectStreamUrl(String videoId, {bool isLive = false}) async {
+    final cleanId = cleanYoutubeVideoId(videoId);
+    if (cleanId.isEmpty) return null;
+
+    // 1. Try youtube_explode_dart
     try {
       final yt = yt_exp.YoutubeExplode();
       try {
         if (isLive) {
           try {
             final liveUrl = await yt.videos.streamsClient
-                .getHttpLiveStreamUrl(yt_exp.VideoId(videoId))
-                .timeout(const Duration(seconds: 10));
+                .getHttpLiveStreamUrl(yt_exp.VideoId(cleanId))
+                .timeout(const Duration(seconds: 6));
             if (liveUrl.isNotEmpty) return liveUrl;
           } catch (_) {}
         }
 
         final manifest = await yt.videos.streamsClient
-            .getManifest(videoId)
-            .timeout(const Duration(seconds: 15));
+            .getManifest(cleanId)
+            .timeout(const Duration(seconds: 8));
         if (manifest.muxed.isNotEmpty) {
           return manifest.muxed.withHighestBitrate().url.toString();
         }
         if (manifest.video.isNotEmpty) {
           return manifest.video.first.url.toString();
         }
+      } catch (_) {
+        // If regular manifest failed, it might be an undeclared live stream
+        try {
+          final liveUrl = await yt.videos.streamsClient
+              .getHttpLiveStreamUrl(yt_exp.VideoId(cleanId))
+              .timeout(const Duration(seconds: 6));
+          if (liveUrl.isNotEmpty) return liveUrl;
+        } catch (_) {}
       } finally {
         yt.close();
       }
     } catch (_) {}
+
+    // 2. Try Innertube Player API (handles Live streams & VODs natively)
+    final innertubeUrl = await _getStreamFromInnertubePlayer(cleanId);
+    if (innertubeUrl != null && innertubeUrl.isNotEmpty) return innertubeUrl;
+
+    // 3. Try Piped API
+    final pipedUrl = await _getStreamFromPiped(cleanId);
+    if (pipedUrl != null && pipedUrl.isNotEmpty) return pipedUrl;
+
     return null;
   }
 
   /// Fetch real closed captions / subtitles directly from YouTube
   Future<List<SubtitleModel>> getSubtitles(String videoId) async {
     try {
-      final cleanId = videoId.trim();
-      final id = cleanId.contains('v=')
-          ? cleanId.split('v=')[1].split('&')[0]
-          : (cleanId.length > 11 ? cleanId.substring(0, 11) : cleanId);
+      final cleanId = cleanYoutubeVideoId(videoId);
+      if (cleanId.isEmpty) return [];
 
       final yt = yt_exp.YoutubeExplode();
       try {
         final manifest = await yt.videos.closedCaptions
-            .getManifest(id)
+            .getManifest(cleanId)
             .timeout(const Duration(seconds: 8));
 
         if (manifest.tracks.isEmpty) return [];
@@ -1181,21 +1299,24 @@ class YoutubeService {
     String videoId, {
     bool isLive = false,
   }) async {
+    final cleanId = cleanYoutubeVideoId(videoId);
+    if (cleanId.isEmpty) return null;
+
     try {
       final yt = yt_exp.YoutubeExplode();
       try {
         if (isLive) {
           try {
             final liveUrl = await yt.videos.streamsClient
-                .getHttpLiveStreamUrl(yt_exp.VideoId(videoId))
-                .timeout(const Duration(seconds: 10));
+                .getHttpLiveStreamUrl(yt_exp.VideoId(cleanId))
+                .timeout(const Duration(seconds: 6));
             if (liveUrl.isNotEmpty) return liveUrl;
           } catch (_) {}
         }
 
         final manifest = await yt.videos.streamsClient
-            .getManifest(videoId)
-            .timeout(const Duration(seconds: 15));
+            .getManifest(cleanId)
+            .timeout(const Duration(seconds: 8));
         if (manifest.audioOnly.isNotEmpty) {
           return manifest.audioOnly.withHighestBitrate().url.toString();
         }
@@ -1206,14 +1327,19 @@ class YoutubeService {
         // Fallback for live streams or unmanifested videos
         try {
           final liveUrl = await yt.videos.streamsClient
-              .getHttpLiveStreamUrl(yt_exp.VideoId(videoId))
-              .timeout(const Duration(seconds: 10));
+              .getHttpLiveStreamUrl(yt_exp.VideoId(cleanId))
+              .timeout(const Duration(seconds: 6));
           if (liveUrl.isNotEmpty) return liveUrl;
         } catch (_) {}
       } finally {
         yt.close();
       }
     } catch (_) {}
+
+    // Fallback to Innertube / Piped stream URL
+    final streamUrl = await _getStreamFromInnertubePlayer(cleanId) ?? await _getStreamFromPiped(cleanId);
+    if (streamUrl != null && streamUrl.isNotEmpty) return streamUrl;
+
     return null;
   }
 

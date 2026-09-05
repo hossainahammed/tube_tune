@@ -24,21 +24,45 @@ class MainNavigationView extends StatefulWidget {
   State<MainNavigationView> createState() => _MainNavigationViewState();
 }
 
-class _MainNavigationViewState extends State<MainNavigationView> {
+class _MainNavigationViewState extends State<MainNavigationView> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isInPip = false;
+  Function(bool)? _pipListener;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     BackgroundAudioService.instance.init();
     PipService.instance.init();
-    PipService.instance.onPipModeChanged = (inPip) {
+    _pipListener = (inPip) {
       if (!mounted) return;
       setState(() {
         _isInPip = inPip;
       });
     };
+    PipService.instance.addPipModeListener(_pipListener!);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (_pipListener != null) {
+      PipService.instance.removePipModeListener(_pipListener!);
+    }
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (!mounted) return;
+    final playerVm = context.read<PlayerViewModel>();
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      playerVm.handleAppBackgrounded();
+    } else if (state == AppLifecycleState.resumed) {
+      playerVm.handleAppForegrounded();
+    }
   }
 
   @override

@@ -53,6 +53,53 @@ class PlayerViewModel with ChangeNotifier {
     required this.settingsViewModel,
   }) {
     _loadSavedData();
+    settingsViewModel.addListener(_onSettingsChanged);
+    _initBackgroundAndPipIntegration();
+  }
+
+  void _onSettingsChanged() {
+    if (settingsViewModel.timerService.isLocked) {
+      handleAppLocked();
+    }
+  }
+
+  void _initBackgroundAndPipIntegration() {
+    BackgroundAudioService.instance.onPlaybackCompleted = () {
+      if (_isAutoplayEnabled) {
+        playNextVideo();
+      }
+    };
+
+    PipService.instance.addPipPlayPauseListener((_) {
+      togglePlayPause();
+    });
+
+    PipService.instance.addPipNextListener(() {
+      playNextVideo();
+    });
+
+    PipService.instance.addPipPrevListener(() {
+      seekTo(Duration.zero);
+    });
+
+    PipService.instance.addScreenOffListener(() {
+      handleAppBackgrounded();
+    });
+
+    PipService.instance.addScreenOnListener(() {
+      handleAppForegrounded();
+    });
+
+    PipService.instance.addPipModeListener((inPip) {
+      if (inPip) {
+        BackgroundAudioService.instance.pause();
+        if (_videoController != null && _videoController!.value.isInitialized) {
+          _videoController!.play();
+          _isPlaying = true;
+          notifyListeners();
+        }
+      }
+    });
   }
 
   // Getters
@@ -82,14 +129,20 @@ class PlayerViewModel with ChangeNotifier {
   bool isWatchLater(String id) => _watchLater.any((v) => v.id == id);
 
   static String cleanYoutubeId(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.contains('v=')) {
-      return trimmed.split('v=')[1].split('&')[0];
+    String clean = raw.trim();
+    if (clean.contains('v=')) {
+      clean = clean.split('v=')[1].split('&')[0];
+    } else if (clean.contains('youtu.be/')) {
+      clean = clean.split('youtu.be/')[1].split('?')[0];
+    } else if (clean.contains('/shorts/')) {
+      clean = clean.split('/shorts/')[1].split('?')[0];
+    } else if (clean.contains('/live/')) {
+      clean = clean.split('/live/')[1].split('?')[0];
     }
-    if (trimmed.length > 11) {
-      return trimmed.substring(0, 11);
+    if (clean.length > 11) {
+      clean = clean.substring(0, 11);
     }
-    return trimmed;
+    return clean;
   }
 
   void _loadSavedData() {
@@ -126,9 +179,13 @@ class PlayerViewModel with ChangeNotifier {
     // Add to watch history
     _addToHistory(video);
 
-    // Prepare background audio stream if background play is enabled
+    // Prepare or start background audio stream if background play is enabled
     if (settingsViewModel.enableBackgroundPlay) {
-      BackgroundAudioService.instance.prepareAudio(video);
+      if (BackgroundAudioService.instance.isPlaying) {
+        BackgroundAudioService.instance.startBackgroundPlay(video);
+      } else {
+        BackgroundAudioService.instance.prepareAudio(video);
+      }
       PipService.instance.setVideoPlaying(true);
     }
 
@@ -567,8 +624,100 @@ class PlayerViewModel with ChangeNotifier {
     return null;
   }
 
+  /// Play next video in queue with boolean outcome
+  bool playNextVideo() {
+    final next = getNextVideo();
+    if (next != null) {
+      playVideo(next);
+      return true;
+    }
+    return false;
+  }
+
+  /// Stop all video playback and audio immediately
+  void stopVideo() {
+    _videoController?.pause();
+    _iframeController?.pauseVideo();
+    _isPlaying = false;
+    _disposePlayerControllers();
+    BackgroundAudioService.instance.stop();
+    PipService.instance.setVideoPlaying(false);
+    notifyListeners();
+  }
+
+  /// Global handler when Timer Locker locks the app
+  void handleAppLocked() {
+    stopVideo();
+    _isMiniPlayerVisible = false;
+    _currentVideo = null;
+    notifyListeners();
+  }
+
+  /// Handle app entering background (minimized, screen locked, app switcher)
+  Future<void> handleAppBackgrounded() async {
+    if (!settingsViewModel.enableBackgroundPlay) return;
+    if (!_isPlaying || _currentVideo == null) return;
+
+    // If native Picture-in-Picture window is actively running, keep rendering video
+    final inPip = await PipService.instance.isPipActive();
+    if (inPip) return;
+
+    // App is minimized or screen is off: Pause video player so Android does not kill surface decoding
+    final pos = _videoController?.value.position ?? Duration.zero;
+    if (_videoController != null && _videoController!.value.isInitialized) {
+      try {
+        await _videoController!.pause();
+      } catch (_) {}
+    }
+    if (_iframeController != null) {
+      try {
+        _iframeController!.pauseVideo();
+      } catch (_) {}
+    }
+
+    // Seamlessly hand off playback to foreground background audio service
+    await BackgroundAudioService.instance.startBackgroundPlay(
+      _currentVideo!,
+      startPosition: pos,
+    );
+  }
+
+  /// Handle app returning to foreground
+  Future<void> handleAppForegrounded() async {
+    if (BackgroundAudioService.instance.isPlaying) {
+      final bgPos = BackgroundAudioService.instance.position;
+      await BackgroundAudioService.instance.pause();
+
+      if (_videoController != null && _videoController!.value.isInitialized) {
+        if (!(_currentVideo?.isLive ?? false) && bgPos > Duration.zero) {
+          try {
+            await _videoController!.seekTo(bgPos);
+          } catch (_) {}
+        }
+        await _videoController!.play();
+        _isPlaying = true;
+        PipService.instance.setVideoPlaying(true);
+        notifyListeners();
+      } else if (_iframeController != null) {
+        if (!(_currentVideo?.isLive ?? false) && bgPos > Duration.zero) {
+          try {
+            _iframeController!.seekTo(seconds: bgPos.inSeconds.toDouble());
+          } catch (_) {}
+        }
+        _iframeController!.playVideo();
+        _isPlaying = true;
+        notifyListeners();
+      }
+    } else if (_isPlaying) {
+      if (_videoController != null && _videoController!.value.isInitialized && !_videoController!.value.isPlaying) {
+        await _videoController!.play();
+      }
+    }
+  }
+
   @override
   void dispose() {
+    settingsViewModel.removeListener(_onSettingsChanged);
     _disposePlayerControllers();
     super.dispose();
   }

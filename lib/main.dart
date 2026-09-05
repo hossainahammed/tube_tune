@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'core/services/auth_service.dart';
+import 'core/services/background_audio_service.dart';
 import 'core/services/cast_service.dart';
 import 'core/services/download_service.dart';
 import 'core/services/notification_service.dart';
@@ -24,6 +25,8 @@ import 'package:just_audio_background/just_audio_background.dart';
 import 'viewmodels/shorts_viewmodel.dart';
 import 'views/main_navigation_view.dart';
 import 'core/responsive/responsive_centered_wrapper.dart';
+
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,11 +56,21 @@ void main() async {
   final storageService = await StorageService.getInstance();
   final timerService = await TimerService.getInstance(storageService);
   final authService = await AuthService.getInstance(storageService);
-  final subscriptionService = await SubscriptionService.getInstance(storageService);
+  final subscriptionService = await SubscriptionService.getInstance(
+    storageService,
+  );
   final youtubeService = YoutubeService.instance;
   if (!kIsWeb) {
     await DownloadService.instance.init();
   }
+
+  // Handle immediate global halt of all running media when auto-lock or schedule-lock triggers
+  TimerService.onLockTriggered = () {
+    try {
+      appNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+      BackgroundAudioService.instance.stop();
+    } catch (_) {}
+  };
 
   runApp(
     TubeTuneApp(
@@ -142,7 +155,11 @@ class TubeTuneApp extends StatelessWidget {
                 settingsViewModel: settingsVm,
               ),
         ),
-        ChangeNotifierProxyProvider2<SettingsViewModel, SubscriptionService, SubscriptionsViewModel>(
+        ChangeNotifierProxyProvider2<
+          SettingsViewModel,
+          SubscriptionService,
+          SubscriptionsViewModel
+        >(
           create: (ctx) => SubscriptionsViewModel(
             youtubeService: youtubeService,
             subscriptionService: subscriptionService,
@@ -172,6 +189,7 @@ class TubeTuneApp extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
+        navigatorKey: appNavigatorKey,
         title: 'TubeTune',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,

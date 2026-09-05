@@ -19,12 +19,15 @@ class BackgroundAudioService extends ChangeNotifier {
   };
 
   VideoModel? _currentVideo;
+  String? _currentAudioVideoId;
   String? _currentAudioUrl;
   bool _isPlaying = false;
   bool _isPreparing = false;
   bool _isStarting = false;
+  VoidCallback? onPlaybackCompleted;
 
   VideoModel? get currentVideo => _currentVideo;
+  String? get currentAudioVideoId => _currentAudioVideoId;
   bool get isPlaying => _isPlaying;
   bool get isPreparing => _isPreparing;
   AudioPlayer get player => _audioPlayer;
@@ -38,6 +41,9 @@ class BackgroundAudioService extends ChangeNotifier {
     _audioPlayer.playerStateStream.listen((state) {
       _isPlaying = state.playing;
       notifyListeners();
+      if (state.processingState == ProcessingState.completed) {
+        onPlaybackCompleted?.call();
+      }
     });
 
     _audioPlayer.playbackEventStream.listen((event) {}, onError: (Object e, StackTrace st) async {
@@ -50,6 +56,8 @@ class BackgroundAudioService extends ChangeNotifier {
           );
           if (freshUrl != null && freshUrl.isNotEmpty) {
             final pos = _audioPlayer.position;
+            _currentAudioVideoId = _currentVideo!.id;
+            _currentAudioUrl = freshUrl;
             final audioSource = AudioSource.uri(
               Uri.parse(freshUrl),
               headers: _streamHeaders,
@@ -71,6 +79,7 @@ class BackgroundAudioService extends ChangeNotifier {
   /// Prepare audio directly with an existing stream URL (no extra network fetch required)
   Future<void> prepareAudioWithUrl(VideoModel video, String audioUrl) async {
     _currentVideo = video;
+    _currentAudioVideoId = video.id;
     _currentAudioUrl = audioUrl;
     try {
       final audioSource = AudioSource.uri(
@@ -89,7 +98,7 @@ class BackgroundAudioService extends ChangeNotifier {
 
   /// Prepare audio stream in advance for the currently playing video
   Future<void> prepareAudio(VideoModel video) async {
-    if (_currentVideo?.id == video.id && _currentAudioUrl != null && _audioPlayer.audioSource != null) return;
+    if (_currentAudioVideoId == video.id && _currentAudioUrl != null && _audioPlayer.audioSource != null) return;
     _currentVideo = video;
     _isPreparing = true;
     notifyListeners();
@@ -97,6 +106,7 @@ class BackgroundAudioService extends ChangeNotifier {
     try {
       final audioUrl = await YoutubeService.instance.getDirectAudioStreamUrl(video.id, isLive: video.isLive);
       if (audioUrl != null && audioUrl.isNotEmpty) {
+        _currentAudioVideoId = video.id;
         _currentAudioUrl = audioUrl;
         final audioSource = AudioSource.uri(
           Uri.parse(audioUrl),
@@ -118,7 +128,7 @@ class BackgroundAudioService extends ChangeNotifier {
 
   /// Start playing audio in background starting from given position
   Future<void> startBackgroundPlay(VideoModel video, {Duration startPosition = Duration.zero, String? streamUrl}) async {
-    if (_isPlaying && _currentVideo?.id == video.id) return;
+    if (_isPlaying && _currentAudioVideoId == video.id) return;
     if (_isStarting) return;
     _isStarting = true;
     _currentVideo = video;
@@ -129,12 +139,13 @@ class BackgroundAudioService extends ChangeNotifier {
     } catch (_) {}
 
     try {
-      if (_currentAudioUrl == null || _currentVideo?.id != video.id || _audioPlayer.audioSource == null) {
+      if (_currentAudioUrl == null || _currentAudioVideoId != video.id || _audioPlayer.audioSource == null) {
         String? audioUrl = streamUrl;
         if (audioUrl == null || audioUrl.isEmpty) {
           audioUrl = await YoutubeService.instance.getDirectAudioStreamUrl(video.id, isLive: video.isLive);
         }
         if (audioUrl != null && audioUrl.isNotEmpty) {
+          _currentAudioVideoId = video.id;
           _currentAudioUrl = audioUrl;
           final audioSource = AudioSource.uri(
             Uri.parse(audioUrl),
@@ -188,6 +199,7 @@ class BackgroundAudioService extends ChangeNotifier {
       await _audioPlayer.stop();
     } catch (_) {}
     _currentVideo = null;
+    _currentAudioVideoId = null;
     _currentAudioUrl = null;
     _isPlaying = false;
     notifyListeners();

@@ -2,20 +2,58 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 /// Service interfacing with native Android Picture-in-Picture (PiP) and Background Play.
-class PipService {
+class PipService with ChangeNotifier {
   PipService._();
   static final PipService instance = PipService._();
 
   static const MethodChannel _channel = MethodChannel('com.tubetune.app/pip');
 
-  Function(bool isInPip)? onPipModeChanged;
-  void Function()? onScreenOff;
-  void Function()? onScreenOn;
-  void Function(bool isPlaying)? onPipPlayPause;
-  void Function()? onPipNext;
-  void Function()? onPipPrev;
+  final Set<Function(bool)> _pipModeListeners = {};
+  final Set<VoidCallback> _screenOffListeners = {};
+  final Set<VoidCallback> _screenOnListeners = {};
+  final Set<Function(bool)> _pipPlayPauseListeners = {};
+  final Set<VoidCallback> _pipNextListeners = {};
+  final Set<VoidCallback> _pipPrevListeners = {};
+
   bool _isPipActive = false;
   bool get isInPip => _isPipActive;
+
+  void addPipModeListener(Function(bool) listener) => _pipModeListeners.add(listener);
+  void removePipModeListener(Function(bool) listener) => _pipModeListeners.remove(listener);
+
+  void addScreenOffListener(VoidCallback listener) => _screenOffListeners.add(listener);
+  void removeScreenOffListener(VoidCallback listener) => _screenOffListeners.remove(listener);
+
+  void addScreenOnListener(VoidCallback listener) => _screenOnListeners.add(listener);
+  void removeScreenOnListener(VoidCallback listener) => _screenOnListeners.remove(listener);
+
+  void addPipPlayPauseListener(Function(bool) listener) => _pipPlayPauseListeners.add(listener);
+  void removePipPlayPauseListener(Function(bool) listener) => _pipPlayPauseListeners.remove(listener);
+
+  void addPipNextListener(VoidCallback listener) => _pipNextListeners.add(listener);
+  void removePipNextListener(VoidCallback listener) => _pipNextListeners.remove(listener);
+
+  void addPipPrevListener(VoidCallback listener) => _pipPrevListeners.add(listener);
+  void removePipPrevListener(VoidCallback listener) => _pipPrevListeners.remove(listener);
+
+  set onPipModeChanged(Function(bool isInPip)? cb) {
+    if (cb != null) _pipModeListeners.add(cb);
+  }
+  set onScreenOff(VoidCallback? cb) {
+    if (cb != null) _screenOffListeners.add(cb);
+  }
+  set onScreenOn(VoidCallback? cb) {
+    if (cb != null) _screenOnListeners.add(cb);
+  }
+  set onPipPlayPause(Function(bool isPlaying)? cb) {
+    if (cb != null) _pipPlayPauseListeners.add(cb);
+  }
+  set onPipNext(VoidCallback? cb) {
+    if (cb != null) _pipNextListeners.add(cb);
+  }
+  set onPipPrev(VoidCallback? cb) {
+    if (cb != null) _pipPrevListeners.add(cb);
+  }
 
   void init() {
     if (kIsWeb) return;
@@ -23,18 +61,31 @@ class PipService {
       if (call.method == 'onPipModeChanged') {
         final bool inPip = call.arguments as bool? ?? false;
         _isPipActive = inPip;
-        onPipModeChanged?.call(inPip);
+        for (final l in _pipModeListeners.toList()) {
+          l(inPip);
+        }
+        notifyListeners();
       } else if (call.method == 'onScreenOff') {
-        onScreenOff?.call();
+        for (final l in _screenOffListeners.toList()) {
+          l();
+        }
       } else if (call.method == 'onScreenOn') {
-        onScreenOn?.call();
+        for (final l in _screenOnListeners.toList()) {
+          l();
+        }
       } else if (call.method == 'onPipPlayPause') {
         final bool isPlaying = call.arguments as bool? ?? false;
-        onPipPlayPause?.call(isPlaying);
+        for (final l in _pipPlayPauseListeners.toList()) {
+          l(isPlaying);
+        }
       } else if (call.method == 'onPipNext') {
-        onPipNext?.call();
+        for (final l in _pipNextListeners.toList()) {
+          l();
+        }
       } else if (call.method == 'onPipPrev') {
-        onPipPrev?.call();
+        for (final l in _pipPrevListeners.toList()) {
+          l();
+        }
       }
     });
   }

@@ -34,6 +34,8 @@ class TimerService with ChangeNotifier {
     }
   }
 
+  static VoidCallback? onLockTriggered;
+
   /// Recalculate remaining seconds and verify schedule
   void _recalculateFromTimestamps() {
     final now = DateTime.now();
@@ -43,6 +45,7 @@ class TimerService with ChangeNotifier {
       final isOutside = _state.isOutsideSchedule(now);
       if (isOutside) {
         _state = _state.copyWith(isScheduleLocked: true, isLocked: true);
+        onLockTriggered?.call();
       } else if (_state.isScheduleLocked) {
         _state = _state.copyWith(isScheduleLocked: false, isLocked: false);
       }
@@ -77,6 +80,7 @@ class TimerService with ChangeNotifier {
       if (isOutside && !_state.isScheduleLocked) {
         _state = _state.copyWith(isScheduleLocked: true, isLocked: true);
         storage.saveTimerState(_state);
+        onLockTriggered?.call();
         notifyListeners();
         return;
       } else if (!isOutside && _state.isScheduleLocked) {
@@ -121,6 +125,7 @@ class TimerService with ChangeNotifier {
       breakRemainingSeconds: _state.breakDurationMinutes * 60,
     );
     storage.saveTimerState(_state);
+    onLockTriggered?.call();
     notifyListeners();
   }
 

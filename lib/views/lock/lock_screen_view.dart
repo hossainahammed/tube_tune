@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/services/background_audio_service.dart';
+import '../../viewmodels/player_viewmodel.dart';
 import '../../viewmodels/settings_viewmodel.dart';
 import '../shared/pin_dialog.dart';
 
@@ -26,6 +28,13 @@ class LockScreenView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        BackgroundAudioService.instance.stop();
+        context.read<PlayerViewModel>().handleAppLocked();
+      } catch (_) {}
+    });
+
     final settingsVm = context.watch<SettingsViewModel>();
     final timerState = settingsVm.timerService.state;
     final isScheduleLocked = timerState.isScheduleLocked;
